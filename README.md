@@ -1,0 +1,2 @@
+﻿# Shader Viewer Plugin
+A fork of the MeshSetPlugin plugin for Frosty Editor, allows for viewing ShaderGraph assets in the mesh viewer. Also includes real time parameter editing, custom skyboxes and variation viewing (was already a thing, but was useless with the original fallback shader).
