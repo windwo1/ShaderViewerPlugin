@@ -20,6 +20,7 @@ using MeshRenderShape = MeshSetPlugin.Render.MeshRenderShape;
 using Shader = MeshSetPlugin.Render.Shader;
 using MeshRenderBase = MeshSetPlugin.Render.MeshRenderBase;
 using MeshRenderPath = MeshSetPlugin.Render.MeshRenderPath;
+using System.Diagnostics;
 
 namespace MeshSetPlugin.Screens
 {
@@ -431,6 +432,14 @@ namespace MeshSetPlugin.Screens
         public Vector3 CameraPos;
     }
 
+    public struct GlobalsData
+    {
+        public Vector2 VignetteScale;
+        public float VignetteExponent;
+        public Vector3 VignetteColor;
+        public float VignetteOpacity;
+    }
+
     public class ShaderRenderScreen : Screen
     {
         #region -- Shader Constants --
@@ -574,6 +583,13 @@ namespace MeshSetPlugin.Screens
             public float FlipY;
             public Vector2 Pad;
         }
+
+        protected struct GlobalConstants
+        {
+            public Vector4 VignetteColor;
+            public Vector3 VignetteParams;
+            public uint Padding;
+        }
         #endregion
 
         /// <summary>
@@ -599,6 +615,7 @@ namespace MeshSetPlugin.Screens
         protected ConstantBuffer<LightConstants> lightConstants;
         protected ConstantBuffer<CubeMapConstants> cubeMapConstants;
         protected ConstantBuffer<TableLookupConstants> lookupTableConstants;
+        protected ConstantBuffer<GlobalConstants> globalConstants;
         protected SharpDX.Direct3D11.Buffer postProcessConstants;
 
         // resources
@@ -655,6 +672,7 @@ namespace MeshSetPlugin.Screens
         protected PixelShader psDownSample2x2;
         protected PixelShader psBloomBlur;
         protected PixelShader psRenderBloom;
+        protected PixelShader psVignette;
 
         // txaa
         protected IntPtr txaaContext;
@@ -681,7 +699,7 @@ namespace MeshSetPlugin.Screens
 
         // everything here is mainly here for testing purposes and may be completely removed
 
-        protected RenderCreateState2 RenderCreateState2 => new RenderCreateState2(Viewport.Device, textureLibrary, shaderLibrary);
+        protected RenderCreateState2 RenderCreateState2 => new RenderCreateState2(Viewport.Device, textureLibrary, shaderLibrary, this);
 
         public DXUT.BaseCamera camera;
 
@@ -690,6 +708,7 @@ namespace MeshSetPlugin.Screens
         public float CameraISO { get; set; } = 100.0f;
 
         public Vector3 SunPosition { get; set; } = new Vector3(10, 20, 20);
+        public Vector3 SunColor { get; set; } = new Vector3(1, 1, 1);
         public float SunIntensity { get; set; } = 1000.0f;
         public float SunAngularRadius { get; set; } = 0.029f;
 
@@ -704,6 +723,7 @@ namespace MeshSetPlugin.Screens
                 bRecalculateLightProbe = true;
             }
         }
+        public GlobalsData Globals { get; set; }
         public float LightProbeIntensity { get; set; } = 1.0f;
         public ShaderResourceView LookupTable { get; set; }
         public ShaderResourceView Skybox { get; set; }
@@ -1040,6 +1060,7 @@ namespace MeshSetPlugin.Screens
             lightConstants = new ConstantBuffer<LightConstants>(Viewport.Device, new LightConstants());
             cubeMapConstants = new ConstantBuffer<CubeMapConstants>(Viewport.Device, new CubeMapConstants());
             lookupTableConstants = new ConstantBuffer<TableLookupConstants>(Viewport.Device, new TableLookupConstants());
+            globalConstants = new ConstantBuffer<GlobalConstants>(Viewport.Device, new GlobalConstants());
             postProcessConstants = new SharpDX.Direct3D11.Buffer(Viewport.Device, new BufferDescription()
             {
                 BindFlags = BindFlags.ConstantBuffer,
@@ -1079,6 +1100,7 @@ namespace MeshSetPlugin.Screens
             psDownSample2x2 = FrostyShaderDb.GetShader<PixelShader>(Viewport.Device, "DownSample2x2");
             psBloomBlur = FrostyShaderDb.GetShader<PixelShader>(Viewport.Device, "BloomBlur");
             psRenderBloom = FrostyShaderDb.GetShader<PixelShader>(Viewport.Device, "RenderBloom");
+            psVignette = FrostyShaderDb.GetShader<PixelShader>(Viewport.Device, "Vignette");
 
             // resources
             preintegratedDFGTexture = new BindableTexture(Viewport.Device, new Texture2DDescription()
@@ -1524,6 +1546,7 @@ namespace MeshSetPlugin.Screens
             postProcessConstants.Dispose();
             cubeMapConstants.Dispose();
             lookupTableConstants.Dispose();
+            globalConstants.Dispose();
 
             psPointLight.Dispose();
             psSunLight.Dispose();
@@ -1553,6 +1576,7 @@ namespace MeshSetPlugin.Screens
             psDownSample2x2.Dispose();
             psBloomBlur.Dispose();
             psRenderBloom.Dispose();
+            psVignette.Dispose();
 
             normalBasisCubemapTexture.Dispose();
             preintegratedDFGTexture.Dispose();
@@ -2086,7 +2110,7 @@ namespace MeshSetPlugin.Screens
                 {
                     lightConstants.UpdateData(Viewport.Context, new LightConstants()
                     {
-                        LightColorAndIntensity = new Vector4(0, 0, 0, SunIntensity),
+                        LightColorAndIntensity = new Vector4(SunColor.X, SunColor.Y, SunColor.Z, SunIntensity),
                         LightPosAndInvSqrRadius = new Vector4(SunPosition * new Vector3(-1, 1, 1), SunAngularRadius)
                     });
 
@@ -2244,6 +2268,7 @@ namespace MeshSetPlugin.Screens
                 PostProcessMeasureLuminance();
                 PostProcessBloom();
                 PostProcessColorLookupTable();
+                PostProcessVignette();
                 PostProcessSelectionOutline();
                 PostProcessEditorComposite();
             }
@@ -3090,6 +3115,38 @@ namespace MeshSetPlugin.Screens
             D3DUtils.EndPerfEvent(Viewport.Context);
         }
 
+        protected virtual void PostProcessVignette()
+        {
+            D3DUtils.BeginPerfEvent(Viewport.Context, "Vignette");
+            {
+                Viewport.Context.OutputMerger.SetRenderTargets(null, postProcessTexture.RTV);
+                Viewport.Context.OutputMerger.DepthStencilState = D3DUtils.CreateDepthStencilState(false);
+                Viewport.Context.OutputMerger.BlendState = D3DUtils.CreateBlendState(D3DUtils.CreateBlendStateRenderTarget());
+                Viewport.Context.Rasterizer.State = D3DUtils.CreateRasterizerState(CullMode.None);
+
+                Viewport.Context.InputAssembler.SetIndexBuffer(null, SharpDX.DXGI.Format.Unknown, 0);
+                Viewport.Context.InputAssembler.SetVertexBuffers(0, new VertexBufferBinding());
+                Viewport.Context.InputAssembler.InputLayout = null;
+
+                Viewport.Context.VertexShader.Set(vsFullscreenQuad);
+                Viewport.Context.VertexShader.SetConstantBuffer(0, commonConstants.Buffer);
+
+                globalConstants.UpdateData(Viewport.Context, new GlobalConstants()
+                {
+                    VignetteColor = new Vector4(Globals.VignetteColor, Globals.VignetteOpacity),
+                    VignetteParams = new Vector3(Globals.VignetteScale, Globals.VignetteExponent == 0 ? 0 : 1 / Globals.VignetteExponent)
+                });
+
+                Viewport.Context.PixelShader.Set(psVignette);
+                Viewport.Context.PixelShader.SetConstantBuffer(0, globalConstants.Buffer);
+                Viewport.Context.PixelShader.SetShaderResources(0, finalColorTexture.SRV);
+                Viewport.Context.PixelShader.SetSampler(0, D3DUtils.CreateSamplerState(address: TextureAddressMode.Clamp, filter: Filter.MinMagMipPoint));
+
+                Viewport.Context.Draw(6, 0);
+            }
+            D3DUtils.EndPerfEvent(Viewport.Context);
+        }
+
         /// <summary>
         /// Collect the selected objects and render them to the selection buffer
         /// </summary>
@@ -3184,7 +3241,7 @@ namespace MeshSetPlugin.Screens
                 Viewport.Context.VertexShader.SetConstantBuffer(0, commonConstants.Buffer);
 
                 Viewport.Context.PixelShader.Set(psSelectionOutline);
-                Viewport.Context.PixelShader.SetShaderResources(0, finalColorTexture.SRV, selectionDepthTexture.SRV);
+                Viewport.Context.PixelShader.SetShaderResources(0, postProcessTexture.SRV, selectionDepthTexture.SRV);
                 Viewport.Context.PixelShader.SetSampler(0, D3DUtils.CreateSamplerState(address: TextureAddressMode.Clamp, filter: Filter.MinMagMipPoint));
 
                 Viewport.Context.Draw(6, 0);

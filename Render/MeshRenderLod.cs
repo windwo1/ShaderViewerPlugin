@@ -26,15 +26,6 @@ using D3D11 = SharpDX.Direct3D11;
 namespace MeshSetPlugin.Render
 {
     [StructLayout(LayoutKind.Sequential)]
-    struct UInt4
-    {
-        public uint X;
-        public uint Y;
-        public uint Z;
-        public uint W;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
     struct Matrix48
     {
         public Vector4 Row0;
@@ -51,17 +42,14 @@ namespace MeshSetPlugin.Render
         private SharpDX.DXGI.Format indexBufferFormat;
         private List<MeshRenderSection> sections = new List<MeshRenderSection>();
         private MeshSetLod meshLod;
-
-        private ShaderRenderScreen renderScreen;
         private MeshMaterialCollection materialCollection;
         private RenderCreateState2 renderState;
 
         private static readonly Dictionary<string, ShaderPermutation> permutations = new Dictionary<string, ShaderPermutation>();
 
-        public MeshRenderLod(RenderCreateState2 state, MeshSetLod lod, MeshMaterialCollection materials, MeshRenderSkeleton skeleton, ShaderRenderScreen screen)
+        public MeshRenderLod(RenderCreateState2 state, MeshSetLod lod, MeshMaterialCollection materials, MeshRenderSkeleton skeleton)
         {
             meshLod = lod;
-            renderScreen = screen;
             materialCollection = materials;
             renderState = state;
 
@@ -224,11 +212,20 @@ namespace MeshSetPlugin.Render
             if (renderPath == null)
                 return null;
 
+            var declPairs = renderPath.PermutationPairs.Where(p => p.GeometryDeclarationHash == decl.Hash);
+
             PermutationPair perm = null;
             if (renderPath.PermutationPairs.Any(p => p.GeometryDeclarationHash == decl.Hash))
             {
+                var pairs = renderPath.PermutationPairs.Where(p => p.GeometryDeclarationHash == decl.Hash);
+
                 ShaderSkinningMethod skinningMethod = (ShaderSkinningMethod)section.BonesPerVertex;
-                var pairs = renderPath.PermutationPairs.Where(p => CheckPermutationPair(p, skinningMethod, decl.Hash));
+                if (!pairs.Any(p => p.SolutionState.skinningMethod == skinningMethod))
+                {
+                    skinningMethod = ShaderSkinningMethod.ShaderSkinningMethod_None;
+                }
+
+                pairs = pairs.Where(p => CheckPermutationPair(p, skinningMethod));
 
                 bool forwardRendered = !pairs.Any(p => p.SolutionState.renderMode == ShaderRenderMode.ShaderRenderMode_DeferredShadingGBufferLayout4);
 
@@ -285,11 +282,8 @@ namespace MeshSetPlugin.Render
             return permutation;
         }
 
-        private bool CheckPermutationPair(PermutationPair pair, ShaderSkinningMethod skinningMethod, uint declHash)
+        private bool CheckPermutationPair(PermutationPair pair, ShaderSkinningMethod skinningMethod)
         {
-            if (pair.GeometryDeclarationHash != declHash)
-                return false;
-
             if (!ProfilesLibrary.IsLoaded(
                 ProfileVersion.PlantsVsZombiesBattleforNeighborville, 
                 ProfileVersion.NeedForSpeedHeat))
@@ -299,13 +293,16 @@ namespace MeshSetPlugin.Render
             }
 
             var skinning = pair.SolutionState.skinningMethod;
-            if (skinning != ShaderSkinningMethod.ShaderSkinningMethod_None)
+            if (skinningMethod != ShaderSkinningMethod.ShaderSkinningMethod_None)
             {
                 if (skinning != skinningMethod)
                     return false;
             }
 
             if (pair.SolutionState.instancingMethod != ShaderData.ShaderInstancingMethod.ShaderInstancingMethod_None)
+                return false;
+
+            if (pair.SolutionState.renderMode == ShaderRenderMode.ShaderRenderMode_ZOnly)
                 return false;
 
             return true;
@@ -458,7 +455,7 @@ namespace MeshSetPlugin.Render
                         bool doubleSided = perm.PermutationData.DoubleSided;
                         context.Rasterizer.State = D3DUtils.CreateRasterizerState(doubleSided ? CullMode.None : flipped ? CullMode.Front : CullMode.Back);
 
-                        var frameData = renderScreen.GetFrameData();
+                        var frameData = renderState.CurrentScreen.GetFrameData();
 
                         perm.VSViewConstants.Set("time", frameData.Time);
                         perm.VSViewConstants.Set("screenSize", frameData.ScreenSize);
@@ -509,8 +506,8 @@ namespace MeshSetPlugin.Render
                         // idk what this is supposed to be, but some water shaders use it
                         perm.PSFunctionConstants.Set("distortionMaxValue", new Vector4(1, 1, 1, 1));
 
-                        perm.PSFunctionConstants.SetArray("lightProbeShL2", renderScreen.SHLightProbe);
-                        perm.PSFunctionConstants.Set("outdoorLightDir", Vector3.Normalize(renderScreen.SunPosition * new Vector3(-1, 1, 1)));
+                        perm.PSFunctionConstants.SetArray("lightProbeShL2", renderState.CurrentScreen.SHLightProbe);
+                        perm.PSFunctionConstants.Set("outdoorLightDir", Vector3.Normalize(renderState.CurrentScreen.SunPosition * new Vector3(-1, 1, 1)));
                         perm.PSFunctionConstants.Set("outdoorLightIlluminanceAndSpecularScale", new Vector3(3.0f, 3.0f, 3.0f));
                         perm.PSFunctionConstants.Set("worldMatrix", transform);
                         perm.PSFunctionConstants.Upload(context);
@@ -536,10 +533,10 @@ namespace MeshSetPlugin.Render
                         }
 
                         if (perm.PSResourceSlots.TryGetValue("texture_forwardShadingPreIntegratedFG", out int fgSlot))
-                            context.PixelShader.SetShaderResource(fgSlot, renderScreen.PreintegratedDFGTextureSRV);
+                            context.PixelShader.SetShaderResource(fgSlot, renderState.CurrentScreen.PreintegratedDFGTextureSRV);
 
                         if (perm.PSResourceSlots.TryGetValue("texture_normalBasisCubemapTexture", out int shadowSlot))
-                            context.PixelShader.SetShaderResource(shadowSlot, renderScreen.NormalBasisCubemapTextureSRV);
+                            context.PixelShader.SetShaderResource(shadowSlot, renderState.CurrentScreen.NormalBasisCubemapTextureSRV);
 
                         // weird thing some shaders do, where boneVectors isnt used for bone data,
                         // and if M11 of that data is negative, everything becomes 0. for now we'll check for these shaders like this

@@ -73,7 +73,7 @@ namespace MeshSetPlugin.Screens
                     skeleton = new MeshRenderSkeleton();
 
                 IsLoading = true;
-                MeshRenderMesh renderMesh = new MeshRenderMesh(state, mesh, materials, skeleton, this);
+                MeshRenderMesh renderMesh = new MeshRenderMesh(state, mesh, materials, skeleton);
                 renderMeshes.Add(new MeshAndPreviewContainer(meshId, mesh, renderMesh, transform, materials));
                 IsLoading = false;
             });
@@ -219,15 +219,26 @@ namespace MeshSetPlugin.Screens
             });
         }
 
-        public void SetVisualEnvironment(EbxAssetEntry entry)
+        public void SetVisualEnvironment(EbxAssetEntry entry, MeshSetPreviewSettings previewSettings)
         {
             renderTasks.Enqueue((RenderCreateState2 state) =>
             {
-                SunIntensity = 1000.0f;
-                MinEV100 = 8.0f;
-                MinEV100 = 20.0f;
-                LookupTable = null;
-                Skybox = null;
+                // set defaults in case visenv is null
+                SunColor = SharpDXUtils.FromVec3(previewSettings.SunColor);
+                SunIntensity = previewSettings.SunIntensity;
+                BloomStrength = previewSettings.BloomStrength;
+                MinEV100 = previewSettings.MinEV100;
+                MaxEV100 = previewSettings.MaxEV100;
+
+                var defaultLookupTable = App.AssetManager.GetEbxEntry(previewSettings.ColorLookupTable.External.FileGuid);
+                var defaultSkybox = App.AssetManager.GetEbxEntry(previewSettings.SkyboxTexture.External.FileGuid);
+
+                LookupTable = (defaultLookupTable != null)
+                    ? state.TextureLibrary.LoadTextureAsset(defaultLookupTable.Guid)
+                    : null;
+                Skybox = (defaultSkybox != null)
+                    ? state.TextureLibrary.LoadTextureAsset(defaultSkybox.Guid, true)
+                    : null;
 
                 if (entry == null)
                     return;
@@ -243,6 +254,8 @@ namespace MeshSetPlugin.Screens
                     return;
                 }
 
+                var globals = new GlobalsData();
+
                 foreach (var pointer in rootObject.Object.Internal.Components)
                 {
                     var component = pointer.Internal;
@@ -250,6 +263,7 @@ namespace MeshSetPlugin.Screens
                     {
                         case "OutdoorLightComponentData":
                             SunIntensity = component.SunIntensity * 100;
+                            SunColor = SharpDXUtils.FromVec3(component.SunColor);
                             break;
                         case "TonemapComponentData":
                             BloomStrength = (component.BloomScale.x * component.BloomScale.y * component.BloomScale.z) / 3;
@@ -274,8 +288,16 @@ namespace MeshSetPlugin.Screens
                                     : null;
                             }
                             break;
+                        case "VignetteComponentData":
+                            globals.VignetteScale = new Vector2(component.Scale.x, component.Scale.y);
+                            globals.VignetteExponent = component.Exponent;
+                            globals.VignetteColor = SharpDXUtils.FromVec3(component.Color);
+                            globals.VignetteOpacity = component.Opacity;
+                            break;
                     }
                 }
+
+                Globals = globals;
             });
 
             return;

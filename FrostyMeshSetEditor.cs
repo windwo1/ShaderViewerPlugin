@@ -174,6 +174,10 @@ namespace MeshSetPlugin
         // Lights
 
         [Category("Lights")]
+        [DisplayName("Sun Color")]
+        [EbxFieldMeta(EbxFieldType.Struct)]
+        public dynamic SunColor { get; set; }
+        [Category("Lights")]
         [DisplayName("Sun Position")]
         [EbxFieldMeta(EbxFieldType.Struct)]
         public dynamic SunPosition { get; set; }
@@ -304,6 +308,11 @@ namespace MeshSetPlugin
 
         public MeshSetPreviewSettings()
         {
+            SunColor = TypeLibrary.CreateObject("Vec3");
+            SunColor.x = 1.0f;
+            SunColor.y = 1.0f;
+            SunColor.z = 1.0f;
+
             SunPosition = TypeLibrary.CreateObject("Vec3");
             SunPosition.x = 10.0f;
             SunPosition.y = 20.0f;
@@ -3529,7 +3538,11 @@ namespace MeshSetPlugin
 
         private void PgPreviewSettings_OnModified(object sender, ItemModifiedEventArgs e)
         {
-            if (e.Item.Name.Contains("SunPosition"))
+            if (e.Item.Name.Contains("SunColor"))
+            {
+                screen.SunColor = SharpDXUtils.FromVec3(previewSettings.SunColor);
+            }
+            else if (e.Item.Name.Contains("SunPosition"))
             {
                 screen.SunPosition = SharpDXUtils.FromVec3(previewSettings.SunPosition);
             }
@@ -3644,7 +3657,7 @@ namespace MeshSetPlugin
             }
             else if (e.Item.Name == "VisualEnvironment")
             {
-                screen.SetVisualEnvironment(App.AssetManager.GetEbxEntry(previewSettings.VisualEnvironment.External.FileGuid));
+                screen.SetVisualEnvironment(App.AssetManager.GetEbxEntry(previewSettings.VisualEnvironment.External.FileGuid), previewSettings);
             }
             else if (e.Item.Name == "PreviewMeshes")
             {

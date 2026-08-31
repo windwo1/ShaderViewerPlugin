@@ -8,6 +8,7 @@ using FrostySdk.Attributes;
 using FrostySdk.Ebx;
 using FrostySdk.IO;
 using FrostySdk.Managers;
+using MeshSetPlugin.Screens;
 using SharpDX;
 using SharpDX.D3DCompiler;
 using SharpDX.Direct3D;
@@ -2119,12 +2120,14 @@ namespace MeshSetPlugin.Render
         public Device Device { get; private set; }
         public TextureLibrary TextureLibrary { get; private set; }
         public ShaderLibrary ShaderLibrary { get; private set; }
+        public ShaderRenderScreen CurrentScreen { get; private set; }
 
-        public RenderCreateState2(Device inDevice, TextureLibrary inTextureLibrary, ShaderLibrary inShaderLibrary)
+        public RenderCreateState2(Device inDevice, TextureLibrary inTextureLibrary, ShaderLibrary inShaderLibrary, ShaderRenderScreen inScreen)
         {
             Device = inDevice;
             TextureLibrary = inTextureLibrary;
             ShaderLibrary = inShaderLibrary;
+            CurrentScreen = inScreen;
         }
     }
 

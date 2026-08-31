@@ -13,11 +13,11 @@ namespace MeshSetPlugin.Render
         public IEnumerable<MeshRenderLod> LODs => lods;
         private List<MeshRenderLod> lods = new List<MeshRenderLod>();
 
-        public MeshRenderMesh(RenderCreateState2 state, MeshSet meshSet, MeshMaterialCollection materials, MeshRenderSkeleton skeleton, ShaderRenderScreen screen)
+        public MeshRenderMesh(RenderCreateState2 state, MeshSet meshSet, MeshMaterialCollection materials, MeshRenderSkeleton skeleton)
         {
             foreach (MeshSetLod lod in meshSet.Lods)
             {
-                MeshRenderLod renderLod = new MeshRenderLod(state, lod, materials, skeleton, screen);
+                MeshRenderLod renderLod = new MeshRenderLod(state, lod, materials, skeleton);
                 lods.Add(renderLod);
             }
 

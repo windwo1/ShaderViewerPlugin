@@ -51,11 +51,14 @@
   <ItemGroup>
     <None Remove="Shaders\Skybox.bin" />
     <None Remove="Shaders\Skybox.xml" />
+    <None Remove="Shaders\SunLight.pso" />
   </ItemGroup>
   
   <ItemGroup>
+    <EmbeddedResource Include="Shaders\Vignette.pso" />
     <EmbeddedResource Include="Shaders\Skybox.bin" />
     <EmbeddedResource Include="Shaders\Skybox.xml" />
+    <EmbeddedResource Include="Shaders\SunLight.pso" />
   </ItemGroup>
   
   <ItemGroup>

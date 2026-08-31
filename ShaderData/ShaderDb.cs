@@ -65,11 +65,11 @@ namespace MeshSetPlugin.ShaderData
         private AssetEntry assetEntry;
         private ILogger logger;
 
-        // cached data so subsequent loads are faster
         private static Dictionary<uint, List<RenderPath>> shaderMap = new Dictionary<uint, List<RenderPath>>();
         private static Dictionary<uint, long> shaderMapOffsets = new Dictionary<uint, long>();
 
         private string mapCachePath;
+        private const uint cacheVersion = 1;
 
         private uint dbSize = 0;
         static bool firstTimeLoad = true;
@@ -104,11 +104,21 @@ namespace MeshSetPlugin.ShaderData
                 targetData.Name = assetEntry.Name;
             }
 
-            // on the first load, build a dictionary with all the necessary shader info
-            // also load the texture hash cache for the games that need it
             if (firstTimeLoad)
             {
-                if (!File.Exists(mapCachePath))
+                bool needsRewrite = true;
+                if (File.Exists(mapCachePath))
+                {
+                    using (var reader = new NativeReader(new FileStream(mapCachePath, FileMode.Open)))
+                    {
+                        if (reader.ReadUInt() == cacheVersion)
+                        {
+                            needsRewrite = false;
+                        }
+                    }
+                }
+
+                if (needsRewrite)
                 {
                     IEnumerable<ResAssetEntry> shaderDbs = App.AssetManager.EnumerateRes((uint)Utils.HashString("IShaderDatabase", true));
                     int dbCount = shaderDbs.Count();
@@ -213,6 +223,9 @@ namespace MeshSetPlugin.ShaderData
         {
             using (var reader = new NativeReader(new FileStream(mapCachePath, FileMode.Open)))
             {
+                // cacheVersion
+                reader.ReadInt();
+
                 int count = reader.ReadInt();
                 for (int i = 0; i < count; i++)
                 {
@@ -469,6 +482,8 @@ namespace MeshSetPlugin.ShaderData
         {
             using (var writer = new NativeWriter(File.Open(mapCachePath, FileMode.Create)))
             {
+                writer.Write(cacheVersion);
+
                 writer.Write(shaderMap.Count);
                 foreach (var kvp in shaderMap)
                 {

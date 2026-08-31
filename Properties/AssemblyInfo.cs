@@ -6,7 +6,6 @@ using System.Windows;
 using System.Windows.Markup;
 using MeshSetPlugin.Handlers;
 using FrostySdk.Managers;
-using MeshSetPlugin.ShaderData;
 
 // Setting ComVisible to false makes the types in this assembly not visible
 // to COM components.  If you need to access a type in this assembly from
@@ -38,6 +37,10 @@ using MeshSetPlugin.ShaderData;
 [assembly: RegisterAssetDefinition("SkinnedMeshAsset", typeof(SkinnedMeshAssetDefinition))]
 [assembly: RegisterAssetDefinition("CompositeMeshAsset", typeof(CompositeMeshAssetDefinition))]
 
-[assembly: RegisterStartupAction(typeof(Startup))]
+[assembly: RegisterStartupAction(typeof(MeshSetPlugin.ShaderData.Startup))]
+
+// slightly modified so that the sun color actually works
+[assembly: RegisterShader(ShaderType.PixelShader, "SunLight", "MeshSetPlugin.Shaders.SunLight.pso")]
+[assembly: RegisterShader(ShaderType.PixelShader, "Vignette", "MeshSetPlugin.Shaders.Vignette.pso")]
 
 [assembly: RegisterCustomHandler(CustomHandlerType.Res, typeof(ShaderBlockDepotCustomActionHandler), resType: ResourceType.ShaderBlockDepot)]
