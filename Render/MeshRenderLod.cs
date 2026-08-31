@@ -512,7 +512,6 @@ namespace MeshSetPlugin.Render
                         perm.PSFunctionConstants.Set("worldMatrix", transform);
                         perm.PSFunctionConstants.Upload(context);
 
-                        var material = materialCollection[section.MeshSection.MaterialId];
                         foreach (var texConst in perm.PermutationData.PixelShader.TextureConstants)
                         {
                             var entry = App.AssetManager.GetEbxEntry(texConst.Name);
@@ -520,16 +519,20 @@ namespace MeshSetPlugin.Render
 
                             context.PixelShader.SetShaderResource(texConst.Index, texture);
                         }
-                        foreach (var param in material.TextureParameters)
+                        if (materialCollection.Count > 0)
                         {
-                            var textures = section.Permutation.PSResourceSlots;
-                            string name = param.ParameterName;
+                            var material = materialCollection[section.MeshSection.MaterialId];
+                            foreach (var param in material.TextureParameters)
+                            {
+                                var textures = section.Permutation.PSResourceSlots;
+                                string name = param.ParameterName;
 
-                            if (!textures.TryGetValue("texture_" + name, out int index))
-                                continue;
+                                if (!textures.TryGetValue("texture_" + name, out int index))
+                                    continue;
 
-                            var textureGuid = param.Value.External.FileGuid;
-                            context.PixelShader.SetShaderResources(index, renderState.TextureLibrary.LoadTextureAsset(textureGuid));
+                                var textureGuid = param.Value.External.FileGuid;
+                                context.PixelShader.SetShaderResources(index, renderState.TextureLibrary.LoadTextureAsset(textureGuid));
+                            }
                         }
 
                         if (perm.PSResourceSlots.TryGetValue("texture_forwardShadingPreIntegratedFG", out int fgSlot))
