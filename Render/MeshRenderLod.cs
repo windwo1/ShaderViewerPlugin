@@ -275,6 +275,9 @@ namespace MeshSetPlugin.Render
             if (!permutation.LoadShaders(state.Device, vsBytecode, psBytecode))
                 return null;
 
+            permutation.VSFunctionConstants = new ShaderDataCBuffer(perm.VertexShader.ConstantFunctions);
+            permutation.PSFunctionConstants = new ShaderDataCBuffer(perm.PixelShader.ConstantFunctions);
+
             permutation.IsCustomShader = true;
             renderSection.IsShaderValid = true;
 
@@ -456,30 +459,24 @@ namespace MeshSetPlugin.Render
                         context.Rasterizer.State = D3DUtils.CreateRasterizerState(doubleSided ? CullMode.None : flipped ? CullMode.Front : CullMode.Back);
 
                         var frameData = renderState.CurrentScreen.GetFrameData();
-
-                        perm.VSViewConstants.Set("time", frameData.Time);
-                        perm.VSViewConstants.Set("screenSize", frameData.ScreenSize);
-                        perm.VSViewConstants.Set("viewMatrix", frameData.ViewMatrix);
-                        perm.VSViewConstants.Set("projMatrix", frameData.ProjMatrix);
-                        perm.VSViewConstants.Set("viewProjMatrix", frameData.ViewProjMatrix);
-                        perm.VSViewConstants.Set("crViewProjMatrix", frameData.CrViewProjMatrix);
-                        perm.VSViewConstants.Set("exposureMultipliers", frameData.ExposureMultipliers);
-                        perm.VSViewConstants.Set("cameraPos", frameData.CameraPos);
-                        perm.VSViewConstants.Set("projectionKxKyKzKw", frameData.ProjectionKxKyKzKw);
-                        perm.VSViewConstants.SetArray("normalBasisTransforms", frameData.NormalBasisTransforms);
-                        perm.VSViewConstants.Upload(context);
-
-                        perm.PSViewConstants.Set("time", frameData.Time);
-                        perm.PSViewConstants.Set("screenSize", frameData.ScreenSize);
-                        perm.PSViewConstants.Set("viewMatrix", frameData.ViewMatrix);
-                        perm.PSViewConstants.Set("projMatrix", frameData.ProjMatrix);
-                        perm.PSViewConstants.Set("viewProjMatrix", frameData.ViewProjMatrix);
-                        perm.PSViewConstants.Set("crViewProjMatrix", frameData.CrViewProjMatrix);
-                        perm.PSViewConstants.Set("exposureMultipliers", frameData.ExposureMultipliers);
-                        perm.PSViewConstants.Set("cameraPos", frameData.CameraPos);
-                        perm.PSViewConstants.Set("projectionKxKyKzKw", frameData.ProjectionKxKyKzKw);
-                        perm.PSViewConstants.SetArray("normalBasisTransforms", frameData.NormalBasisTransforms);
-                        perm.PSViewConstants.Upload(context);
+                        perm.ViewConstants.UpdateData(context, new ViewConstants
+                        {
+                            time = frameData.Time,
+                            screenSize = frameData.ScreenSize,
+                            viewMatrix = frameData.ViewMatrix,
+                            projMatrix = frameData.ProjMatrix,
+                            viewProjMatrix = frameData.ViewProjMatrix,
+                            crViewProjMatrix = frameData.CrViewProjMatrix,
+                            exposureMultipliers = frameData.ExposureMultipliers,
+                            cameraPos = frameData.CameraPos,
+                            projectionKxKyKzKw = frameData.ProjectionKxKyKzKw,
+                            normalBasisTransforms0 = frameData.NormalBasisTransforms[0],
+                            normalBasisTransforms1 = frameData.NormalBasisTransforms[1],
+                            normalBasisTransforms2 = frameData.NormalBasisTransforms[2],
+                            normalBasisTransforms3 = frameData.NormalBasisTransforms[3],
+                            normalBasisTransforms4 = frameData.NormalBasisTransforms[4],
+                            normalBasisTransforms5 = frameData.NormalBasisTransforms[5],
+                        });
 
                         foreach (var kvp in perm.PSResourceSlots)
                         {
@@ -503,14 +500,17 @@ namespace MeshSetPlugin.Render
                         if (perm.PSResourceSlots.TryGetValue("instanceVectorBuffer", out int psBoneBuf))
                             context.PixelShader.SetShaderResource(psBoneBuf, perm.boneBuffer.SRV);
 
-                        // idk what this is supposed to be, but some water shaders use it
-                        perm.PSFunctionConstants.Set("distortionMaxValue", new Vector4(1, 1, 1, 1));
+                        if (perm.PermutationData.PixelShader.ConstantFunctions.Count > 0)
+                        {
+                            // idk what this is supposed to be, but some water shaders use it
+                            perm.PSFunctionConstants.Set("distortionMaxValue", new Vector4(1, 1, 1, 1));
 
-                        perm.PSFunctionConstants.SetArray("lightProbeShL2", renderState.CurrentScreen.SHLightProbe);
-                        perm.PSFunctionConstants.Set("outdoorLightDir", Vector3.Normalize(renderState.CurrentScreen.SunPosition * new Vector3(-1, 1, 1)));
-                        perm.PSFunctionConstants.Set("outdoorLightIlluminanceAndSpecularScale", new Vector3(3.0f, 3.0f, 3.0f));
-                        perm.PSFunctionConstants.Set("worldMatrix", transform);
-                        perm.PSFunctionConstants.Upload(context);
+                            perm.PSFunctionConstants.SetArray("lightProbeShL2", renderState.CurrentScreen.SHLightProbe);
+                            perm.PSFunctionConstants.Set("outdoorLightDir", Vector3.Normalize(renderState.CurrentScreen.SunPosition * new Vector3(-1, 1, 1)));
+                            perm.PSFunctionConstants.Set("outdoorLightIlluminanceAndSpecularScale", new Vector3(3.0f, 3.0f, 3.0f));
+                            perm.PSFunctionConstants.Set("worldMatrix", transform);
+                            perm.PSFunctionConstants.Upload(context);
+                        }
 
                         foreach (var texConst in perm.PermutationData.PixelShader.TextureConstants)
                         {
@@ -552,6 +552,7 @@ namespace MeshSetPlugin.Render
                             Matrix m = transform;
                             if (!useBoneVectors)
                             {
+                                // cancels out the first one
                                 m = Matrix.Scaling(-1, 1, 1) * transform;
                             }
 
@@ -563,16 +564,18 @@ namespace MeshSetPlugin.Render
                             };
                         }
 
-                        perm.VSFunctionConstants.SetArray("boneVectors", boneVectors);
-                        perm.VSFunctionConstants.Set("worldMatrix", transform);
-                        perm.VSFunctionConstants.Upload(context);
+                        if (perm.PermutationData.VertexShader.ConstantFunctions.Count > 0)
+                        {
+                            perm.VSFunctionConstants.SetArray("boneVectors", boneVectors);
+                            perm.VSFunctionConstants.Set("worldMatrix", transform);
+                            perm.VSFunctionConstants.Upload(context);
+                        }
 
                         context.VertexShader.SetConstantBuffer(0, perm.VSFunctionConstants.Buffer);
-                        context.VertexShader.SetConstantBuffer(1, perm.VSExternalConstants.Buffer);
-                        context.VertexShader.SetConstantBuffer(2, perm.VSViewConstants.Buffer);
+                        context.VertexShader.SetConstantBuffer(2, perm.ViewConstants.Buffer);
                         context.PixelShader.SetConstantBuffer(0, perm.PSFunctionConstants.Buffer);
                         context.PixelShader.SetConstantBuffer(1, section.PixelParameters);
-                        context.PixelShader.SetConstantBuffer(2, perm.PSViewConstants.Buffer);
+                        context.PixelShader.SetConstantBuffer(2, perm.ViewConstants.Buffer);
                     }
 
                     section.Draw(context);

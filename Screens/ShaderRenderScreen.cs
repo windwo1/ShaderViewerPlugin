@@ -420,7 +420,7 @@ namespace MeshSetPlugin.Screens
 
     public struct FrameData
     {
-        public Vector4 Time;
+        public Vector3 Time;
         public Vector4 ScreenSize;
         public Matrix ViewMatrix;
         public Matrix ProjMatrix;
@@ -588,7 +588,7 @@ namespace MeshSetPlugin.Screens
         {
             public Vector4 VignetteColor;
             public Vector3 VignetteParams;
-            public uint Padding;
+            public uint Pad;
         }
         #endregion
 
@@ -1389,7 +1389,7 @@ namespace MeshSetPlugin.Screens
 
             return new FrameData
             {
-                Time = new Vector4(time, time, time, time),
+                Time = new Vector3(time, time, time),
                 ScreenSize = new Vector4(Viewport.ViewportWidth, Viewport.ViewportHeight, 1.0f / Viewport.ViewportWidth, 1.0f / Viewport.ViewportHeight),
                 ViewMatrix = viewMatrix,
                 ProjMatrix = projMatrix,
@@ -3214,7 +3214,7 @@ namespace MeshSetPlugin.Screens
 
                 Viewport.Context.PixelShader.SetConstantBuffer(0, viewConstants.Buffer);
                 Viewport.Context.PixelShader.SetShaderResource(0, normalBasisCubemapTexture.SRV);
-                Viewport.Context.PixelShader.SetSampler(0, D3DUtils.CreateSamplerState(TextureAddressMode.Clamp, filter: Filter.MinMagMipPoint));
+                Viewport.Context.PixelShader.SetSampler(1, D3DUtils.CreateSamplerState(TextureAddressMode.Wrap, filter: Filter.MinMagMipLinear));
 
                 RenderMeshes(MeshRenderPath.Forward, editorMeshes);
             }
