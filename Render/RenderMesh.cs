@@ -235,7 +235,7 @@ namespace MeshSetPlugin.Render
 
         public void Dispose()
         {
-            Buffer.Dispose();
+            Buffer?.Dispose();
         }
     }
 

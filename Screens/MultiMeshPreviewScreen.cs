@@ -240,6 +240,8 @@ namespace MeshSetPlugin.Screens
                     ? state.TextureLibrary.LoadTextureAsset(defaultSkybox.Guid, true)
                     : null;
 
+                Globals = new GlobalsData();
+
                 if (entry == null)
                     return;
 

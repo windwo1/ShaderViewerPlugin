@@ -3827,8 +3827,6 @@ namespace MeshSetPlugin
         {
             if (firstTimeLoad)
             {
-                MeshRenderLod.ClearPermutationsCache();
-
                 ulong resRid = ((dynamic)RootObject).MeshSetResource;
                 ResAssetEntry rEntry = App.AssetManager.GetResEntry(resRid);
 

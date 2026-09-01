@@ -46,13 +46,14 @@ namespace MeshSetPlugin.Render
         private MeshMaterialCollection materialCollection;
         private RenderCreateState2 renderState;
 
-        private static readonly Dictionary<string, ShaderPermutation> permutations = new Dictionary<string, ShaderPermutation>();
+        private Dictionary<string, ShaderPermutation> permutations = new Dictionary<string, ShaderPermutation>();
 
-        public MeshRenderLod(RenderCreateState2 state, MeshSetLod lod, MeshMaterialCollection materials, MeshRenderSkeleton skeleton)
+        public MeshRenderLod(RenderCreateState2 state, MeshSetLod lod, MeshMaterialCollection materials, MeshRenderSkeleton skeleton, ref Dictionary<string, ShaderPermutation> perms)
         {
             meshLod = lod;
             materialCollection = materials;
             renderState = state;
+            permutations = perms;
 
             byte[] chunkData = GetChunkData();
             using (DataStream chunkStream = new DataStream((int)lod.IndexBufferSize, false, true))
@@ -1077,11 +1078,6 @@ namespace MeshSetPlugin.Render
             }
 
             indexBuffer.Dispose();
-        }
-
-        public static void ClearPermutationsCache()
-        {
-            permutations.Clear();
         }
     }
 }

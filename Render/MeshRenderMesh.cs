@@ -12,12 +12,13 @@ namespace MeshSetPlugin.Render
         public BoundingBox Bounds;
         public IEnumerable<MeshRenderLod> LODs => lods;
         private List<MeshRenderLod> lods = new List<MeshRenderLod>();
+        private Dictionary<string, ShaderPermutation> permutations = new Dictionary<string, ShaderPermutation>();
 
         public MeshRenderMesh(RenderCreateState2 state, MeshSet meshSet, MeshMaterialCollection materials, MeshRenderSkeleton skeleton)
         {
             foreach (MeshSetLod lod in meshSet.Lods)
             {
-                MeshRenderLod renderLod = new MeshRenderLod(state, lod, materials, skeleton);
+                MeshRenderLod renderLod = new MeshRenderLod(state, lod, materials, skeleton, ref permutations);
                 lods.Add(renderLod);
             }
 
@@ -44,6 +45,11 @@ namespace MeshSetPlugin.Render
         {
             foreach (MeshRenderLod lod in lods)
                 lod.Dispose();
+
+            foreach (var kvp in permutations)
+                kvp.Value.Dispose();
+
+            permutations.Clear();
         }
     }
 }
