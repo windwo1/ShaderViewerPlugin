@@ -574,6 +574,7 @@ namespace MeshSetPlugin.Render
                         }
 
                         context.VertexShader.SetConstantBuffer(0, perm.VSFunctionConstants.Buffer);
+                        context.VertexShader.SetConstantBuffer(1, perm.VSExternalConstants.Buffer);
                         context.VertexShader.SetConstantBuffer(2, perm.ViewConstants.Buffer);
                         context.PixelShader.SetConstantBuffer(0, perm.PSFunctionConstants.Buffer);
                         context.PixelShader.SetConstantBuffer(1, section.PixelParameters);

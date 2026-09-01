@@ -177,6 +177,12 @@ namespace MeshSetPlugin.Render
         public float vc_pad15_;
     }
 
+    public struct ExternalConstants
+    {
+        public Vector4 g_proceduralAnimationParams;
+        public Vector4 g_instanceProceduralAnimParams;
+    }
+
     public class ShaderDataCBuffer : IDisposable
     {
         public Buffer Buffer { get; private set; } = null;
@@ -187,7 +193,7 @@ namespace MeshSetPlugin.Render
 
         public ShaderDataCBuffer(List<ShaderData.ConstantFunction> available)
         {
-            existing = available;
+            existing = available.OrderBy(f => f.CBufferIndex).ToList();
 
             foreach (var function in existing)
             {
@@ -200,7 +206,17 @@ namespace MeshSetPlugin.Render
             if (!existing.Any(f => f.Name == name))
                 return;
 
-            fields[name] = stream => stream.Write(value);
+            fields[name] = stream =>
+            {
+                stream.Write(value);
+
+                var function = existing.FirstOrDefault(f => f.Name == name);
+                int padding = (int)(function.MatrixDims * 4 * 4) - Utilities.SizeOf<T>();
+                if (padding > 0)
+                {
+                    stream.WriteRange(new byte[padding]);
+                }
+            };
         }
 
         public void SetArray<T>(string name, T[] values) where T : struct
@@ -208,7 +224,20 @@ namespace MeshSetPlugin.Render
             if (!existing.Any(f => f.Name == name))
                 return;
 
-            fields[name] = stream => { foreach (var value in values) stream.Write(value); };
+            fields[name] = stream =>
+            {
+                foreach (var value in values)
+                {
+                    stream.Write(value);
+                }
+
+                var function = existing.FirstOrDefault(f => f.Name == name);
+                int padding = (int)(function.MatrixDims * 4 * 4) - (Utilities.SizeOf<T>() * values.Length);
+                if (padding > 0)
+                {
+                    stream.WriteRange(new byte[padding]);
+                }
+            };
         }
 
         public void Upload(DeviceContext c)
@@ -328,6 +357,7 @@ namespace MeshSetPlugin.Render
 
         public ConstantBuffer<ViewConstants> ViewConstants;
         public ShaderDataCBuffer VSFunctionConstants;
+        public ConstantBuffer<ExternalConstants> VSExternalConstants;
         public ShaderDataCBuffer PSFunctionConstants;
 
         public Dictionary<string, int> PSResourceSlots = new Dictionary<string, int>();
@@ -551,6 +581,7 @@ namespace MeshSetPlugin.Render
             boneBuffer = new BoneBuffer(device, 100);
 
             ViewConstants = new ConstantBuffer<ViewConstants>(device, new ViewConstants());
+            VSExternalConstants = new ConstantBuffer<ExternalConstants>(device, new ExternalConstants());
 
             return true;
         }
@@ -1433,6 +1464,7 @@ namespace MeshSetPlugin.Render
         {
             ViewConstants?.Dispose();
             VSFunctionConstants?.Dispose();
+            VSExternalConstants?.Dispose();
             PSFunctionConstants?.Dispose();
             vertexShader?.Dispose();
             pixelShader?.Dispose();
@@ -1441,6 +1473,7 @@ namespace MeshSetPlugin.Render
 
             ViewConstants = null;
             VSFunctionConstants = null;
+            VSExternalConstants = null;
             PSFunctionConstants = null;
             vertexShader = null;
             pixelShader = null;
