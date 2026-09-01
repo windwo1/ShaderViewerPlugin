@@ -26,6 +26,7 @@ using System.Runtime.InteropServices.ComTypes;
 using System.Security.Cryptography;
 using System.Text;
 using System.Windows;
+using System.Windows.Documents;
 using System.Windows.Media.Media3D;
 using System.Xml;
 using Buffer = SharpDX.Direct3D11.Buffer;
@@ -126,93 +127,115 @@ namespace MeshSetPlugin.Render
         TexCube
     }
 
-    // ill be honest, ai was used here to create this class. nothing else in this plugin is, only this class
-    public class ReflectedCBuffer : IDisposable
+    public struct ViewConstants
     {
-        public Buffer Buffer => buffer;
+        public Vector3 time;
+        public float vc_pad0_;
+        public Vector4 screenSize;
+        public Matrix viewMatrix;
+        public Matrix projMatrix;
+        public Matrix viewProjMatrix;
+        public Matrix crViewProjMatrix;
+        public Matrix4x3 normalBasisTransforms0;
+        public Matrix4x3 normalBasisTransforms1;
+        public Matrix4x3 normalBasisTransforms2;
+        public Matrix4x3 normalBasisTransforms3;
+        public Matrix4x3 normalBasisTransforms4;
+        public Matrix4x3 normalBasisTransforms5;
+        public Vector4 projectionKxKyKzKw;
+        public Vector3 cameraPos;
+        public float vc_pad8_;
+        public Vector3 transparentStartAndSlopeAndClamp;
+        public float vc_pad9_;
+        public Vector4 transparentCurve;
+        public Vector4 exposureMultipliers;
+        public Vector4 fogParams;
+        public Vector4 fogForwardScatteringParamsLuminanceScaleFogEnable;
+        public Vector4 fogForwardScatteringColorPresence;
+        public Vector4 fogForwardScatteringSunDir;
+        public Vector4 fogCoefficients;
+        public Vector4 fogColorCoefficients;
+        public Vector4 fogColor;
+        public Vector4 fogStartDistance;
+        public Vector4 fogHeightFogCoefficients;
+        public Vector4 fogMiscParam;
+        public Vector4 fogEnabledModeSkyModeUseLight2;
+        public Vector4 fogSkyGradientUVRanges;
+        public Vector4 mieGMaxDistanceTransTexDepthMieCoef;
+        public Vector3 light0Dir;
+        public float vc_pad10_;
+        public Vector3 light1Dir;
+        public float vc_pad11_;
+        public Vector3 rayleighScatteringCoefficient;
+        public float vc_pad12_;
+        public Vector3 rayleighPolarizationFilter;
+        public float vc_pad13_;
+        public Vector3 miePolarizationFilter;
+        public float vc_pad14_;
+        public Vector4 heightFogColorMulMinTransmittance;
+        public Vector3 heightFogColorAdd;
+        public float vc_pad15_;
+    }
 
-        private byte[] data;
-        private Buffer buffer;
-        private Dictionary<string, (int offset, int size)> variables;
+    public class ShaderDataCBuffer : IDisposable
+    {
+        public Buffer Buffer { get; private set; } = null;
 
-        public ReflectedCBuffer(Device device, ShaderReflection reflection, string name)
+        private Dictionary<string, Action<DataStream>> fields = new Dictionary<string, Action<DataStream>>();
+        private List<ShaderData.ConstantFunction> existing = new List<ShaderData.ConstantFunction>();
+        private int size;
+
+        public ShaderDataCBuffer(List<ShaderData.ConstantFunction> available)
         {
-            try
+            existing = available;
+
+            foreach (var function in existing)
             {
-                var cbuffer = reflection.GetConstantBuffer(name);
-
-                if (cbuffer.Description.Size == 0)
-                    return;
-
-                int size = (cbuffer.Description.Size + 15) / 16 * 16;
-                data = new byte[size];
-                variables = new Dictionary<string, (int offset, int size)>();
-
-                for (int i  = 0; i < cbuffer.Description.VariableCount; i++)
-                {
-                    var variable = cbuffer.GetVariable(i);
-                    var desc = variable.Description;
-
-                    variables[desc.Name] = (desc.StartOffset, desc.Size);
-                }
-
-                buffer = new Buffer(device, size, ResourceUsage.Dynamic, BindFlags.ConstantBuffer, CpuAccessFlags.Write, ResourceOptionFlags.None, 0);
+                 size += (int)(function.MatrixDims * 4 * 4); // just kinda guessed this, i hope its right
             }
-            catch (SharpDXException) { }
         }
 
         public void Set<T>(string name, T value) where T : struct
         {
-            if (variables == null || !variables.TryGetValue(name, out var variable))
+            if (!existing.Any(f => f.Name == name))
                 return;
 
-            int size = Utilities.SizeOf<T>();
-            int writeSize = Math.Min(variable.size, size);
-
-            var bytes = new byte[size];
-            var handle = GCHandle.Alloc(bytes, GCHandleType.Pinned);
-            Marshal.StructureToPtr(value, handle.AddrOfPinnedObject(), false);
-            handle.Free();
-
-            Array.Copy(bytes, 0, data, variable.offset, writeSize);
+            fields[name] = stream => stream.Write(value);
         }
 
         public void SetArray<T>(string name, T[] values) where T : struct
         {
-            if (variables == null || !variables.TryGetValue(name, out var variable))
+            if (!existing.Any(f => f.Name == name))
                 return;
 
-            int size = Utilities.SizeOf<T>();
-            int writeSize = Math.Min(variable.size, size * values.Length);
-
-            var bytes = new byte[size * values.Length];
-            var handle = GCHandle.Alloc(bytes, GCHandleType.Pinned);
-
-            var ptr = handle.AddrOfPinnedObject();
-            for (int i = 0; i < values.Length; i++)
-            {
-                Marshal.StructureToPtr(values[i], ptr + i * size, false);
-            }
-
-            handle.Free();
-            Array.Copy(bytes, 0, data, variable.offset, writeSize);
+            fields[name] = stream => { foreach (var value in values) stream.Write(value); };
         }
 
-        public void Upload(DeviceContext context)
+        public void Upload(DeviceContext c)
         {
-            if (buffer == null)
-                return;
+            BufferDescription description = new BufferDescription(size, BindFlags.ConstantBuffer, ResourceUsage.Dynamic) { CpuAccessFlags = CpuAccessFlags.Write };
+            Buffer = new Buffer(c.Device, description);
 
-            context.MapSubresource(buffer, MapMode.WriteDiscard, MapFlags.None, out var stream);
-            stream.Write(data, 0, data.Length);
+            c.MapSubresource(Buffer, MapMode.WriteDiscard, MapFlags.None, out DataStream stream);
+            foreach (var function in existing)
+            {
+                if (fields.TryGetValue(function.Name, out var write))
+                {
+                    write(stream);
+                }
+                else
+                {
+                    stream.WriteRange(new byte[function.MatrixDims * 4 * 4]);
+                }
+            }
+            c.UnmapSubresource(Buffer, 0);
 
-            context.UnmapSubresource(buffer, 0);
-            stream.Dispose();
+            fields.Clear();
         }
 
         public void Dispose()
         {
-            buffer?.Dispose();
+            Buffer.Dispose();
         }
     }
 
@@ -303,11 +326,9 @@ namespace MeshSetPlugin.Render
         public List<ShaderParameter> PixelTextures = new List<ShaderParameter>();
         public List<SamplerStateDescription> PixelSamplerDescs = new List<SamplerStateDescription>();
 
-        public ReflectedCBuffer VSFunctionConstants;
-        public ReflectedCBuffer VSExternalConstants;
-        public ReflectedCBuffer VSViewConstants;
-        public ReflectedCBuffer PSFunctionConstants;
-        public ReflectedCBuffer PSViewConstants;
+        public ConstantBuffer<ViewConstants> ViewConstants;
+        public ShaderDataCBuffer VSFunctionConstants;
+        public ShaderDataCBuffer PSFunctionConstants;
 
         public Dictionary<string, int> PSResourceSlots = new Dictionary<string, int>();
         public Dictionary<string, int> VSResourceSlots = new Dictionary<string, int>();
@@ -476,7 +497,7 @@ namespace MeshSetPlugin.Render
                         int index = elems.IndexOf(texcoords[0]);
                         var texcoord = elems[index];
 
-                        elems[index] = new InputElement("TEXCOORD", index, SharpDX.DXGI.Format.R16G16B16A16_Float, texcoord.AlignedByteOffset, texcoord.Slot, InputClassification.PerVertexData, 0);
+                        elems[index] = new InputElement("TEXCOORD", texcoords[0].SemanticIndex, SharpDX.DXGI.Format.R16G16B16A16_Float, texcoord.AlignedByteOffset, texcoord.Slot, InputClassification.PerVertexData, 0);
                         elems.Remove(texcoords[1]);
                     }
 
@@ -490,10 +511,6 @@ namespace MeshSetPlugin.Render
                     }
                 }
 
-                VSFunctionConstants = new ReflectedCBuffer(device, reflection, "functionConstants");
-                VSExternalConstants = new ReflectedCBuffer(device, reflection, "externalConstants");
-                VSViewConstants = new ReflectedCBuffer(device, reflection, "viewConstants");
-
                 for (int i = 0; i < desc.BoundResources; i++)
                 {
                     var bindDesc = reflection.GetResourceBindingDescription(i);
@@ -504,9 +521,6 @@ namespace MeshSetPlugin.Render
             using (var reflection = new ShaderReflection(psBytecode))
             {
                 var desc = reflection.Description;
-
-                PSFunctionConstants = new ReflectedCBuffer(device, reflection, "functionConstants");
-                PSViewConstants = new ReflectedCBuffer(device, reflection, "viewConstants");
 
                 for (int i = 0; i < desc.BoundResources; i++)
                 {
@@ -524,8 +538,7 @@ namespace MeshSetPlugin.Render
             }
             catch
             {
-                vertexShader?.Dispose();
-                vertexShader = null;
+                Dispose();
                 return false;
             }
             pixelShader = new PixelShader(device, psBytecode);
@@ -536,6 +549,8 @@ namespace MeshSetPlugin.Render
 
             // setup a new bone buffer
             boneBuffer = new BoneBuffer(device, 100);
+
+            ViewConstants = new ConstantBuffer<ViewConstants>(device, new ViewConstants());
 
             return true;
         }
@@ -1416,17 +1431,20 @@ namespace MeshSetPlugin.Render
 
         public void Dispose()
         {
-            if (vertexShader != null)
-            {
-                vertexShader.Dispose();
-                pixelShader.Dispose();
-                inputLayout.Dispose();
-                pixelSamplers.Clear();
+            ViewConstants?.Dispose();
+            VSFunctionConstants?.Dispose();
+            PSFunctionConstants?.Dispose();
+            vertexShader?.Dispose();
+            pixelShader?.Dispose();
+            inputLayout?.Dispose();
+            pixelSamplers?.Clear();
 
-                vertexShader = null;
-                pixelShader = null;
-                inputLayout = null;
-            }
+            ViewConstants = null;
+            VSFunctionConstants = null;
+            PSFunctionConstants = null;
+            vertexShader = null;
+            pixelShader = null;
+            inputLayout = null;
         }
     }
     public class Shader : IDisposable

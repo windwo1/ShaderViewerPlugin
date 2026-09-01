@@ -33,6 +33,135 @@ namespace MeshSetPlugin.Render
         public Vector4 Row2;
     }
 
+    public enum ShaderConstantFunction
+    {
+        ShaderConstantFunction_ViewMatrix = 0,
+        ShaderConstantFunction_ViewProjMatrix = 1,
+        ShaderConstantFunction_WorldViewMatrix = 2,
+        ShaderConstantFunction_WorldViewProjMatrix = 3,
+        ShaderConstantFunction_CrViewProjMatrix = 4,
+        ShaderConstantFunction_CrWorldViewProjMatrix = 5,
+        ShaderConstantFunction_CameraPos = 6,
+        ShaderConstantFunction_ViewSettings = 7,
+        ShaderConstantFunction_ExposureMultipliers = 8,
+        ShaderConstantFunction_PrevViewProjMatrix = 9,
+        ShaderConstantFunction_PrevWorldViewProjMatrix = 10,
+        ShaderConstantFunction_WorldMatrix = 11,
+        ShaderConstantFunction_PrevWorldMatrix = 12,
+        ShaderConstantFunction_BoneVectors = 13,
+        ShaderConstantFunction_PrevBoneVectors = 14,
+        ShaderConstantFunction_LightProbeShL2 = 15,
+        ShaderConstantFunction_LightMapUvTransform = 16,
+        ShaderConstantFunction_LightMapUvTranslation = 17,
+        ShaderConstantFunction_LightMapIrradianceTexture = 18,
+        ShaderConstantFunction_LightMapDirectionTexture = 19,
+        ShaderConstantFunction_LightMapDirectionTextureG = 20,
+        ShaderConstantFunction_LightMapDirectionTextureB = 21,
+        ShaderConstantFunction_LightMapSkyVisibilityTexture = 22,
+        ShaderConstantFunction_DepthBufferTexture = 23,
+        ShaderConstantFunction_ProjectionKxKyKzKw = 24,
+        ShaderConstantFunction_Time = 25,
+        ShaderConstantFunction_ScreenSize = 26,
+        ShaderConstantFunction_OutdoorLightDir = 27,
+        ShaderConstantFunction_OutdoorLightAngularRadius = 28,
+        ShaderConstantFunction_OutdoorLightHemisphereDir = 29,
+        ShaderConstantFunction_OutdoorLightKeyLuminance = 30,
+        ShaderConstantFunction_OutdoorLightIlluminanceAndSpecularScale = 31,
+        ShaderConstantFunction_OutdoorLightKeySpecularColorAndHemisphereVisibility = 32,
+        ShaderConstantFunction_OutdoorLightTopColor = 33,
+        ShaderConstantFunction_OutdoorLightBottomColor = 34,
+        ShaderConstantFunction_OutdoorLightShadowTransform = 35,
+        ShaderConstantFunction_OutdoorLightShadowTransformArray = 36,
+        ShaderConstantFunction_OutdoorLightShadowTransformArraySize = 37,
+        ShaderConstantFunction_OutdoorLightShadowmapSizeAndInvSize = 38,
+        ShaderConstantFunction_OutdoorLightShadowmapTexture = 39,
+        ShaderConstantFunction_OutdoorLightShadowmapTextureArray = 40,
+        ShaderConstantFunction_OutdoorLightTransparencyShadowmapTexture = 41,
+        ShaderConstantFunction_OutdoorLightSkyEnvmap = 42,
+        ShaderConstantFunction_OutdoorLightCustomEnvmap = 43,
+        ShaderConstantFunction_OutdoorLightDynamicEnvmap = 44,
+        ShaderConstantFunction_OutdoorLightTopColorEnvmap = 45,
+        ShaderConstantFunction_OutdoorLightBottomColorEnvmap = 46,
+        ShaderConstantFunction_OutdoorLightKeyIlluminanceEnvmap = 47,
+        ShaderConstantFunction_OutdoorLightEnvmapsMipmapCount = 48,
+        ShaderConstantFunction_OutdoorLightSkyEnvmap8BitTexInvScale = 49,
+        ShaderConstantFunction_OutdoorLightCustomEnvmapScaleAmbientAndSkyVisExponent = 50,
+        ShaderConstantFunction_OutdoorLightCloudShadowEnable = 51,
+        ShaderConstantFunction_OutdoorLightCloudShadowOffsetScaleExponentAndFade = 52,
+        ShaderConstantFunction_OutdoorLightCloudShadowTexture = 53,
+        ShaderConstantFunction_PointLightCount = 54,
+        ShaderConstantFunction_PointLightsPositionAndRadius = 55,
+        ShaderConstantFunction_PointLightsColorAndAttenuation = 56,
+        ShaderConstantFunction_SpotLightCount = 57,
+        ShaderConstantFunction_SpotLightsPositionAndRadius = 58,
+        ShaderConstantFunction_SpotLightsColorAndAttenuation = 59,
+        ShaderConstantFunction_SpotLightsDirection = 60,
+        ShaderConstantFunction_SpotLightsConeAngles = 61,
+        ShaderConstantFunction_TransparentStartAndSlopeAndClamp = 62,
+        ShaderConstantFunction_TransparentCurve = 63,
+        ShaderConstantFunction_FogParams = 64,
+        ShaderConstantFunction_FogForwardScatteringParamsLuminanceScaleFogEnable = 65,
+        ShaderConstantFunction_FogForwardScatteringColorPresence = 66,
+        ShaderConstantFunction_FogForwardScatteringSunDir = 67,
+        ShaderConstantFunction_FogCoefficients = 68,
+        ShaderConstantFunction_FogColorCoefficients = 69,
+        ShaderConstantFunction_FogColor = 70,
+        ShaderConstantFunction_FogStartDistance = 71,
+        ShaderConstantFunction_FogHeightFogCoefficients = 72,
+        ShaderConstantFunction_FogMiscParam = 73,
+        ShaderConstantFunction_FogEnabledModeSkyModeUseLight2 = 74,
+        ShaderConstantFunction_FogSkyGradientUVRanges = 75,
+        ShaderConstantFunction_MieGMaxDistanceTransTexDepthMieCoef = 76,
+        ShaderConstantFunction_Light0Dir = 77,
+        ShaderConstantFunction_Light1Dir = 78,
+        ShaderConstantFunction_RayleighScatteringCoefficient = 79,
+        ShaderConstantFunction_RayleighPolarizationFilter = 80,
+        ShaderConstantFunction_MiePolarizationFilter = 81,
+        ShaderConstantFunction_HeightFogColorMulMinTransmittance = 82,
+        ShaderConstantFunction_HeightFogColorAdd = 83,
+        ShaderConstantFunction_HorizonScatteringTexture = 84,
+        ShaderConstantFunction_LightShaftTexture = 85,
+        ShaderConstantFunction_BestFitNormalScaleTexture = 86,
+        ShaderConstantFunction_SceneTexture = 87,
+        ShaderConstantFunction_NormalBasisGBufferTexture = 88,
+        ShaderConstantFunction_NormalBasisCubemapTexture = 89,
+        ShaderConstantFunction_NormalBasisTransforms = 90,
+        ShaderConstantFunction_DxVectorBufferOffsets = 91,
+        ShaderConstantFunction_DistortionMaxValue = 92,
+        ShaderConstantFunction_ObjectScale = 93,
+        ShaderConstantFunction_ObjectWorldPosition = 94,
+        ShaderConstantFunction_TessellationScreenSize = 95,
+        ShaderConstantFunction_TessellationCrViewProjMatrix = 96,
+        ShaderConstantFunction_TessellationCameraPos = 97,
+        ShaderConstantFunction_UserData0 = 98,
+        ShaderConstantFunction_UserData1 = 99,
+        ShaderConstantFunction_PrevUserData0 = 100,
+        ShaderConstantFunction_ForwardShadingPreIntegratedDL = 101,
+        ShaderConstantFunction_ForwardShadingPreIntegratedFG = 102,
+        ShaderConstantFunction_ForwardShadingIBLConstant = 103,
+        ShaderConstantFunction_ForwardShadingLocalIBLTextureArray = 104,
+        ShaderConstantFunction_ForwardShadingLocalIBLDataArray = 105,
+        ShaderConstantFunction_ForwardShadingLocalIBLCount = 106,
+        ShaderConstantFunction_ForwardShadingPunctualLightDataArray = 107,
+        ShaderConstantFunction_ForwardShadingPunctualLightCount = 108,
+        ShaderConstantFunction_ForwardShadingPunctualShadowLightDataArray = 109,
+        ShaderConstantFunction_ForwardShadingPunctualShadowLightCount = 110,
+        ShaderConstantFunction_ForwardShadingAreaLightDataArray = 111,
+        ShaderConstantFunction_ForwardShadingAreaLightCount = 112,
+        ShaderConstantFunction_ForwardShadingAreaShadowLightDataArray = 113,
+        ShaderConstantFunction_ForwardShadingAreaShadowLightCount = 114,
+        ShaderConstantFunction_ForwardShadingIESTextureArray = 115,
+        ShaderConstantFunction_ForwardShadingLightConstants = 116,
+        ShaderConstantFunction_ForwardShadingLightGridBuffer = 117,
+        ShaderConstantFunction_ForwardShadingLightIndexBuffer = 118,
+        ShaderConstantFunction_ForwardShadingLocalPRTextureArray = 119,
+        ShaderConstantFunction_ForwardShadingLocalPRDepthTextureArray = 120,
+        ShaderConstantFunction_ForwardShadingLocalPRDataArray = 121,
+        ShaderConstantFunction_ForwardShadingLocalPRCount = 122,
+        ShaderConstantFunctionCount = 123
+    }
+
+
     public class MeshRenderLod : MeshRenderBase, IDisposable
     {
         public IEnumerable<MeshRenderSection> Sections => sections;
@@ -275,6 +404,9 @@ namespace MeshSetPlugin.Render
             if (!permutation.LoadShaders(state.Device, vsBytecode, psBytecode))
                 return null;
 
+            permutation.VSFunctionConstants = new ShaderDataCBuffer(perm.VertexShader.ConstantFunctions);
+            permutation.PSFunctionConstants = new ShaderDataCBuffer(perm.PixelShader.ConstantFunctions);
+
             permutation.IsCustomShader = true;
             renderSection.IsShaderValid = true;
 
@@ -456,30 +588,24 @@ namespace MeshSetPlugin.Render
                         context.Rasterizer.State = D3DUtils.CreateRasterizerState(doubleSided ? CullMode.None : flipped ? CullMode.Front : CullMode.Back);
 
                         var frameData = renderState.CurrentScreen.GetFrameData();
-
-                        perm.VSViewConstants.Set("time", frameData.Time);
-                        perm.VSViewConstants.Set("screenSize", frameData.ScreenSize);
-                        perm.VSViewConstants.Set("viewMatrix", frameData.ViewMatrix);
-                        perm.VSViewConstants.Set("projMatrix", frameData.ProjMatrix);
-                        perm.VSViewConstants.Set("viewProjMatrix", frameData.ViewProjMatrix);
-                        perm.VSViewConstants.Set("crViewProjMatrix", frameData.CrViewProjMatrix);
-                        perm.VSViewConstants.Set("exposureMultipliers", frameData.ExposureMultipliers);
-                        perm.VSViewConstants.Set("cameraPos", frameData.CameraPos);
-                        perm.VSViewConstants.Set("projectionKxKyKzKw", frameData.ProjectionKxKyKzKw);
-                        perm.VSViewConstants.SetArray("normalBasisTransforms", frameData.NormalBasisTransforms);
-                        perm.VSViewConstants.Upload(context);
-
-                        perm.PSViewConstants.Set("time", frameData.Time);
-                        perm.PSViewConstants.Set("screenSize", frameData.ScreenSize);
-                        perm.PSViewConstants.Set("viewMatrix", frameData.ViewMatrix);
-                        perm.PSViewConstants.Set("projMatrix", frameData.ProjMatrix);
-                        perm.PSViewConstants.Set("viewProjMatrix", frameData.ViewProjMatrix);
-                        perm.PSViewConstants.Set("crViewProjMatrix", frameData.CrViewProjMatrix);
-                        perm.PSViewConstants.Set("exposureMultipliers", frameData.ExposureMultipliers);
-                        perm.PSViewConstants.Set("cameraPos", frameData.CameraPos);
-                        perm.PSViewConstants.Set("projectionKxKyKzKw", frameData.ProjectionKxKyKzKw);
-                        perm.PSViewConstants.SetArray("normalBasisTransforms", frameData.NormalBasisTransforms);
-                        perm.PSViewConstants.Upload(context);
+                        perm.ViewConstants.UpdateData(context, new ViewConstants
+                        {
+                            time = frameData.Time,
+                            screenSize = frameData.ScreenSize,
+                            viewMatrix = frameData.ViewMatrix,
+                            projMatrix = frameData.ProjMatrix,
+                            viewProjMatrix = frameData.ViewProjMatrix,
+                            crViewProjMatrix = frameData.CrViewProjMatrix,
+                            exposureMultipliers = frameData.ExposureMultipliers,
+                            cameraPos = frameData.CameraPos,
+                            projectionKxKyKzKw = frameData.ProjectionKxKyKzKw,
+                            normalBasisTransforms0 = frameData.NormalBasisTransforms[0],
+                            normalBasisTransforms1 = frameData.NormalBasisTransforms[1],
+                            normalBasisTransforms2 = frameData.NormalBasisTransforms[2],
+                            normalBasisTransforms3 = frameData.NormalBasisTransforms[3],
+                            normalBasisTransforms4 = frameData.NormalBasisTransforms[4],
+                            normalBasisTransforms5 = frameData.NormalBasisTransforms[5],
+                        });
 
                         foreach (var kvp in perm.PSResourceSlots)
                         {
@@ -503,14 +629,17 @@ namespace MeshSetPlugin.Render
                         if (perm.PSResourceSlots.TryGetValue("instanceVectorBuffer", out int psBoneBuf))
                             context.PixelShader.SetShaderResource(psBoneBuf, perm.boneBuffer.SRV);
 
-                        // idk what this is supposed to be, but some water shaders use it
-                        perm.PSFunctionConstants.Set("distortionMaxValue", new Vector4(1, 1, 1, 1));
+                        if (perm.PermutationData.PixelShader.ConstantFunctions.Count > 0)
+                        {
+                            // idk what this is supposed to be, but some water shaders use it
+                            perm.PSFunctionConstants.Set("distortionMaxValue", new Vector4(1, 1, 1, 1));
 
-                        perm.PSFunctionConstants.SetArray("lightProbeShL2", renderState.CurrentScreen.SHLightProbe);
-                        perm.PSFunctionConstants.Set("outdoorLightDir", Vector3.Normalize(renderState.CurrentScreen.SunPosition * new Vector3(-1, 1, 1)));
-                        perm.PSFunctionConstants.Set("outdoorLightIlluminanceAndSpecularScale", new Vector3(3.0f, 3.0f, 3.0f));
-                        perm.PSFunctionConstants.Set("worldMatrix", transform);
-                        perm.PSFunctionConstants.Upload(context);
+                            perm.PSFunctionConstants.SetArray("lightProbeShL2", renderState.CurrentScreen.SHLightProbe);
+                            perm.PSFunctionConstants.Set("outdoorLightDir", Vector3.Normalize(renderState.CurrentScreen.SunPosition * new Vector3(-1, 1, 1)));
+                            perm.PSFunctionConstants.Set("outdoorLightIlluminanceAndSpecularScale", new Vector3(3.0f, 3.0f, 3.0f));
+                            perm.PSFunctionConstants.Set("worldMatrix", transform);
+                            perm.PSFunctionConstants.Upload(context);
+                        }
 
                         foreach (var texConst in perm.PermutationData.PixelShader.TextureConstants)
                         {
@@ -552,6 +681,7 @@ namespace MeshSetPlugin.Render
                             Matrix m = transform;
                             if (!useBoneVectors)
                             {
+                                // cancels out the first one
                                 m = Matrix.Scaling(-1, 1, 1) * transform;
                             }
 
@@ -563,16 +693,18 @@ namespace MeshSetPlugin.Render
                             };
                         }
 
-                        perm.VSFunctionConstants.SetArray("boneVectors", boneVectors);
-                        perm.VSFunctionConstants.Set("worldMatrix", transform);
-                        perm.VSFunctionConstants.Upload(context);
+                        if (perm.PermutationData.VertexShader.ConstantFunctions.Count > 0)
+                        {
+                            perm.VSFunctionConstants.SetArray("boneVectors", boneVectors);
+                            perm.VSFunctionConstants.Set("worldMatrix", transform);
+                            perm.VSFunctionConstants.Upload(context);
+                        }
 
                         context.VertexShader.SetConstantBuffer(0, perm.VSFunctionConstants.Buffer);
-                        context.VertexShader.SetConstantBuffer(1, perm.VSExternalConstants.Buffer);
-                        context.VertexShader.SetConstantBuffer(2, perm.VSViewConstants.Buffer);
+                        context.VertexShader.SetConstantBuffer(2, perm.ViewConstants.Buffer);
                         context.PixelShader.SetConstantBuffer(0, perm.PSFunctionConstants.Buffer);
                         context.PixelShader.SetConstantBuffer(1, section.PixelParameters);
-                        context.PixelShader.SetConstantBuffer(2, perm.PSViewConstants.Buffer);
+                        context.PixelShader.SetConstantBuffer(2, perm.ViewConstants.Buffer);
                     }
 
                     section.Draw(context);
