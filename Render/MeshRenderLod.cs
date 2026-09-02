@@ -227,12 +227,12 @@ namespace MeshSetPlugin.Render
 
                 pairs = pairs.Where(p => CheckPermutationPair(p, skinningMethod));
 
-                bool forwardRendered = !pairs.Any(p => p.SolutionState.RenderMode == "deferredShadingGBufferLayout3");
+                bool forwardRendered = !pairs.Any(p => p.SolutionState.RenderMode == "deferredShadingGBufferLayout4");
 
                 foreach (var pair in pairs)
                 {
                     // only use forward rendered permutations if this shader is forward rendered
-                    if (!forwardRendered && pair.SolutionState.RenderMode != "deferredShadingGBufferLayout3")
+                    if (!forwardRendered && pair.SolutionState.RenderMode != "deferredShadingGBufferLayout4")
                         continue;
 
                     perm = pair;
@@ -405,7 +405,7 @@ namespace MeshSetPlugin.Render
 
                 if (section.Permutation.PermutationData != null)
                 {
-                    bool forwardRendered = section.Permutation.PermutationData.SolutionState.RenderMode != "deferredShadingGBufferLayout3";
+                    bool forwardRendered = section.Permutation.PermutationData.SolutionState.RenderMode != "deferredShadingGBufferLayout4";
 
                     if (renderPath == MeshRenderPath.Deferred && forwardRendered)
                         continue;
