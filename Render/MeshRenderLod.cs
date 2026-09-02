@@ -275,8 +275,27 @@ namespace MeshSetPlugin.Render
             if (!permutation.LoadShaders(state.Device, vsBytecode, psBytecode))
                 return null;
 
-            permutation.VSFunctionConstants = new ShaderDataCBuffer(perm.VertexShader.ConstantFunctions);
-            permutation.PSFunctionConstants = new ShaderDataCBuffer(perm.PixelShader.ConstantFunctions);
+            List<ShaderDataField> vsFunctions = new List<ShaderDataField>();
+            List<ShaderDataField> psFunctions = new List<ShaderDataField>();
+            foreach (var function in perm.VertexShader.ConstantFunctions)
+            {
+                vsFunctions.Add(new ShaderDataField
+                {
+                    Name = function.Name,
+                    Size = (int)(function.MatrixDims * 4 * 4) // just kinda guessed this, i hope its right
+                });
+            }
+            foreach (var function in perm.PixelShader.ConstantFunctions)
+            {
+                psFunctions.Add(new ShaderDataField
+                {
+                    Name = function.Name,
+                    Size = (int)(function.MatrixDims * 4 * 4)
+                });
+            }
+
+            permutation.VSFunctionConstants = new ShaderDataCBuffer(vsFunctions);
+            permutation.PSFunctionConstants = new ShaderDataCBuffer(psFunctions);
 
             permutation.IsCustomShader = true;
             renderSection.IsShaderValid = true;
@@ -458,25 +477,21 @@ namespace MeshSetPlugin.Render
                         bool doubleSided = perm.PermutationData.DoubleSided;
                         context.Rasterizer.State = D3DUtils.CreateRasterizerState(doubleSided ? CullMode.None : flipped ? CullMode.Front : CullMode.Back);
 
-                        var frameData = renderState.CurrentScreen.GetFrameData();
-                        perm.ViewConstants.UpdateData(context, new ViewConstants
+                        if (perm.ViewConstants != null)
                         {
-                            time = frameData.Time,
-                            screenSize = frameData.ScreenSize,
-                            viewMatrix = frameData.ViewMatrix,
-                            projMatrix = frameData.ProjMatrix,
-                            viewProjMatrix = frameData.ViewProjMatrix,
-                            crViewProjMatrix = frameData.CrViewProjMatrix,
-                            exposureMultipliers = frameData.ExposureMultipliers,
-                            cameraPos = frameData.CameraPos,
-                            projectionKxKyKzKw = frameData.ProjectionKxKyKzKw,
-                            normalBasisTransforms0 = frameData.NormalBasisTransforms[0],
-                            normalBasisTransforms1 = frameData.NormalBasisTransforms[1],
-                            normalBasisTransforms2 = frameData.NormalBasisTransforms[2],
-                            normalBasisTransforms3 = frameData.NormalBasisTransforms[3],
-                            normalBasisTransforms4 = frameData.NormalBasisTransforms[4],
-                            normalBasisTransforms5 = frameData.NormalBasisTransforms[5],
-                        });
+                            var frameData = renderState.CurrentScreen.GetFrameData();
+                            perm.ViewConstants.Set("time", frameData.Time);
+                            perm.ViewConstants.Set("screenSize", frameData.ScreenSize);
+                            perm.ViewConstants.Set("viewMatrix", frameData.ViewMatrix);
+                            perm.ViewConstants.Set("projMatrix", frameData.ProjMatrix);
+                            perm.ViewConstants.Set("viewProjMatrix", frameData.ViewProjMatrix);
+                            perm.ViewConstants.Set("crViewProjMatrix", frameData.CrViewProjMatrix);
+                            perm.ViewConstants.Set("exposureMultipliers", frameData.ExposureMultipliers);
+                            perm.ViewConstants.Set("cameraPos", frameData.CameraPos);
+                            perm.ViewConstants.Set("projectionKxKyKzKw", frameData.ProjectionKxKyKzKw);
+                            perm.ViewConstants.SetArray("normalBasisTransforms", frameData.NormalBasisTransforms);
+                            perm.ViewConstants.Upload(context);
+                        }
 
                         foreach (var kvp in perm.PSResourceSlots)
                         {
@@ -573,10 +588,14 @@ namespace MeshSetPlugin.Render
 
                         context.VertexShader.SetConstantBuffer(0, perm.VSFunctionConstants.Buffer);
                         context.VertexShader.SetConstantBuffer(1, perm.VSExternalConstants.Buffer);
-                        context.VertexShader.SetConstantBuffer(2, perm.ViewConstants.Buffer);
                         context.PixelShader.SetConstantBuffer(0, perm.PSFunctionConstants.Buffer);
                         context.PixelShader.SetConstantBuffer(1, section.PixelParameters);
-                        context.PixelShader.SetConstantBuffer(2, perm.ViewConstants.Buffer);
+
+                        if (perm.ViewConstants != null)
+                        {
+                            context.VertexShader.SetConstantBuffer(2, perm.ViewConstants.Buffer);
+                            context.PixelShader.SetConstantBuffer(2, perm.ViewConstants.Buffer);
+                        }
                     }
 
                     section.Draw(context);

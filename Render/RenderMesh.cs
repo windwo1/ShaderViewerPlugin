@@ -127,60 +127,16 @@ namespace MeshSetPlugin.Render
         TexCube
     }
 
-    public struct ViewConstants
-    {
-        public Vector3 time;
-        public float vc_pad0_;
-        public Vector4 screenSize;
-        public Matrix viewMatrix;
-        public Matrix projMatrix;
-        public Matrix viewProjMatrix;
-        public Matrix crViewProjMatrix;
-        public Matrix4x3 normalBasisTransforms0;
-        public Matrix4x3 normalBasisTransforms1;
-        public Matrix4x3 normalBasisTransforms2;
-        public Matrix4x3 normalBasisTransforms3;
-        public Matrix4x3 normalBasisTransforms4;
-        public Matrix4x3 normalBasisTransforms5;
-        public Vector4 projectionKxKyKzKw;
-        public Vector3 cameraPos;
-        public float vc_pad8_;
-        public Vector3 transparentStartAndSlopeAndClamp;
-        public float vc_pad9_;
-        public Vector4 transparentCurve;
-        public Vector4 exposureMultipliers;
-        public Vector4 fogParams;
-        public Vector4 fogForwardScatteringParamsLuminanceScaleFogEnable;
-        public Vector4 fogForwardScatteringColorPresence;
-        public Vector4 fogForwardScatteringSunDir;
-        public Vector4 fogCoefficients;
-        public Vector4 fogColorCoefficients;
-        public Vector4 fogColor;
-        public Vector4 fogStartDistance;
-        public Vector4 fogHeightFogCoefficients;
-        public Vector4 fogMiscParam;
-        public Vector4 fogEnabledModeSkyModeUseLight2;
-        public Vector4 fogSkyGradientUVRanges;
-        public Vector4 mieGMaxDistanceTransTexDepthMieCoef;
-        public Vector3 light0Dir;
-        public float vc_pad10_;
-        public Vector3 light1Dir;
-        public float vc_pad11_;
-        public Vector3 rayleighScatteringCoefficient;
-        public float vc_pad12_;
-        public Vector3 rayleighPolarizationFilter;
-        public float vc_pad13_;
-        public Vector3 miePolarizationFilter;
-        public float vc_pad14_;
-        public Vector4 heightFogColorMulMinTransmittance;
-        public Vector3 heightFogColorAdd;
-        public float vc_pad15_;
-    }
-
     public struct ExternalConstants
     {
         public Vector4 g_proceduralAnimationParams;
         public Vector4 g_instanceProceduralAnimParams;
+    }
+
+    public struct ShaderDataField
+    {
+        public string Name;
+        public int Size;
     }
 
     public class ShaderDataCBuffer : IDisposable
@@ -188,16 +144,16 @@ namespace MeshSetPlugin.Render
         public Buffer Buffer { get; private set; } = null;
 
         private Dictionary<string, Action<DataStream>> fields = new Dictionary<string, Action<DataStream>>();
-        private List<ShaderData.ConstantFunction> existing = new List<ShaderData.ConstantFunction>();
+        private List<ShaderDataField> existing = new List<ShaderDataField>();
         private int size;
 
-        public ShaderDataCBuffer(List<ShaderData.ConstantFunction> available)
+        public ShaderDataCBuffer(List<ShaderDataField> available)
         {
-            existing = available.OrderBy(f => f.CBufferIndex).ToList();
+            existing = available;
 
-            foreach (var function in existing)
+            foreach (var field in existing)
             {
-                 size += (int)(function.MatrixDims * 4 * 4); // just kinda guessed this, i hope its right
+                size += field.Size;
             }
         }
 
@@ -210,8 +166,8 @@ namespace MeshSetPlugin.Render
             {
                 stream.Write(value);
 
-                var function = existing.FirstOrDefault(f => f.Name == name);
-                int padding = (int)(function.MatrixDims * 4 * 4) - Utilities.SizeOf<T>();
+                var field = existing.FirstOrDefault(f => f.Name == name);
+                int padding = field.Size - Utilities.SizeOf<T>();
                 if (padding > 0)
                 {
                     stream.WriteRange(new byte[padding]);
@@ -231,8 +187,8 @@ namespace MeshSetPlugin.Render
                     stream.Write(value);
                 }
 
-                var function = existing.FirstOrDefault(f => f.Name == name);
-                int padding = (int)(function.MatrixDims * 4 * 4) - (Utilities.SizeOf<T>() * values.Length);
+                var field = existing.FirstOrDefault(f => f.Name == name);
+                int padding = field.Size - (Utilities.SizeOf<T>() * values.Length);
                 if (padding > 0)
                 {
                     stream.WriteRange(new byte[padding]);
@@ -246,15 +202,15 @@ namespace MeshSetPlugin.Render
             Buffer = new Buffer(c.Device, description);
 
             c.MapSubresource(Buffer, MapMode.WriteDiscard, MapFlags.None, out DataStream stream);
-            foreach (var function in existing)
+            foreach (var field in existing)
             {
-                if (fields.TryGetValue(function.Name, out var write))
+                if (fields.TryGetValue(field.Name, out var write))
                 {
                     write(stream);
                 }
                 else
                 {
-                    stream.WriteRange(new byte[function.MatrixDims * 4 * 4]);
+                    stream.WriteRange(new byte[field.Size]);
                 }
             }
             c.UnmapSubresource(Buffer, 0);
@@ -355,7 +311,7 @@ namespace MeshSetPlugin.Render
         public List<ShaderParameter> PixelTextures = new List<ShaderParameter>();
         public List<SamplerStateDescription> PixelSamplerDescs = new List<SamplerStateDescription>();
 
-        public ConstantBuffer<ViewConstants> ViewConstants;
+        public ShaderDataCBuffer ViewConstants;
         public ShaderDataCBuffer VSFunctionConstants;
         public ConstantBuffer<ExternalConstants> VSExternalConstants;
         public ShaderDataCBuffer PSFunctionConstants;
@@ -559,6 +515,35 @@ namespace MeshSetPlugin.Render
                     PSResourceSlots[bindDesc.Name] = bindDesc.BindPoint;
                 }
 
+                if (desc.ConstantBuffers > 0)
+                {
+                    try
+                    {
+                        var fields = new List<ShaderDataField>();
+
+                        var viewConstants = reflection.GetConstantBuffer("viewConstants");
+                        for (int i = 0; i < viewConstants.Description.VariableCount; i++)
+                        {
+                            var variable = viewConstants.GetVariable(i);
+
+                            if (variable.Description.Name.StartsWith("vc_pad"))
+                                continue;
+
+                            var size = variable.Description.Size;
+                            size = ((size + 15) / 16) * 16;
+
+                            fields.Add(new ShaderDataField
+                            {
+                                Name = variable.Description.Name,
+                                Size = size
+                            });
+                        }
+
+                        ViewConstants = new ShaderDataCBuffer(fields);
+                    }
+                    catch (SharpDXException) { }
+                }
+
                 RenderTargetCount = desc.OutputParameters;
             }
 
@@ -580,7 +565,6 @@ namespace MeshSetPlugin.Render
             // setup a new bone buffer
             boneBuffer = new BoneBuffer(device, 100);
 
-            ViewConstants = new ConstantBuffer<ViewConstants>(device, new ViewConstants());
             VSExternalConstants = new ConstantBuffer<ExternalConstants>(device, new ExternalConstants());
 
             return true;
