@@ -27,9 +27,8 @@ namespace MeshSetPlugin
         [Description("Enables shaders for the mesh.")]
         public bool RenderShadersEnabled { get; set; } = true;
         [Category("Rendering")]
-        [DisplayName("Shadow Resolution")]
-        [Description("Shadow resolution for the mesh.")]
-        [DependsOn("RenderShadowsEnabled")]
+        [DisplayName("Shadows Enabled")]
+        [Description("Enableds shadows for the mesh.")]
         public bool RenderShadowsEnabled { get; set; } = true;
         [Category("Rendering")]
         [DisplayName("Shadow Resolution")]
