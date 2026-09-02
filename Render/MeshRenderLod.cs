@@ -214,27 +214,25 @@ namespace MeshSetPlugin.Render
             if (renderPath == null)
                 return null;
 
-            var declPairs = renderPath.PermutationPairs.Where(p => p.GeometryDeclarationHash == decl.Hash);
-
             PermutationPair perm = null;
             if (renderPath.PermutationPairs.Any(p => p.GeometryDeclarationHash == decl.Hash))
             {
                 var pairs = renderPath.PermutationPairs.Where(p => p.GeometryDeclarationHash == decl.Hash);
 
-                ShaderSkinningMethod skinningMethod = (ShaderSkinningMethod)section.BonesPerVertex;
-                if (!pairs.Any(p => p.SolutionState.skinningMethod == skinningMethod))
+                string skinningMethod = $"linear{section.BonesPerVertex}Bone";
+                if (!pairs.Any(p => p.SolutionState.SkinningMethod == skinningMethod))
                 {
-                    skinningMethod = ShaderSkinningMethod.ShaderSkinningMethod_None;
+                    skinningMethod = "none";
                 }
 
                 pairs = pairs.Where(p => CheckPermutationPair(p, skinningMethod));
 
-                bool forwardRendered = !pairs.Any(p => p.SolutionState.renderMode == ShaderRenderMode.ShaderRenderMode_DeferredShadingGBufferLayout4);
+                bool forwardRendered = !pairs.Any(p => p.SolutionState.RenderMode == "deferredShadingGBufferLayout3");
 
                 foreach (var pair in pairs)
                 {
                     // only use forward rendered permutations if this shader is forward rendered
-                    if (!forwardRendered && pair.SolutionState.renderMode != ShaderRenderMode.ShaderRenderMode_DeferredShadingGBufferLayout4)
+                    if (!forwardRendered && pair.SolutionState.RenderMode != "deferredShadingGBufferLayout3")
                         continue;
 
                     perm = pair;
@@ -287,7 +285,7 @@ namespace MeshSetPlugin.Render
             return permutation;
         }
 
-        private bool CheckPermutationPair(PermutationPair pair, ShaderSkinningMethod skinningMethod)
+        private bool CheckPermutationPair(PermutationPair pair, string skinningMethod)
         {
             if (!ProfilesLibrary.IsLoaded(
                 ProfileVersion.PlantsVsZombiesBattleforNeighborville, 
@@ -297,17 +295,17 @@ namespace MeshSetPlugin.Render
                     return false;
             }
 
-            var skinning = pair.SolutionState.skinningMethod;
-            if (skinningMethod != ShaderSkinningMethod.ShaderSkinningMethod_None)
+            var skinning = pair.SolutionState.SkinningMethod;
+            if (skinningMethod != "none")
             {
                 if (skinning != skinningMethod)
                     return false;
             }
 
-            if (pair.SolutionState.instancingMethod != ShaderData.ShaderInstancingMethod.ShaderInstancingMethod_None)
+            if (pair.SolutionState.InstancingMethod != "none")
                 return false;
 
-            if (pair.SolutionState.renderMode == ShaderRenderMode.ShaderRenderMode_ZOnly)
+            if (pair.SolutionState.RenderMode == "zOnly")
                 return false;
 
             return true;
@@ -407,7 +405,7 @@ namespace MeshSetPlugin.Render
 
                 if (section.Permutation.PermutationData != null)
                 {
-                    bool forwardRendered = section.Permutation.PermutationData.SolutionState.renderMode != ShaderRenderMode.ShaderRenderMode_DeferredShadingGBufferLayout4;
+                    bool forwardRendered = section.Permutation.PermutationData.SolutionState.RenderMode != "deferredShadingGBufferLayout3";
 
                     if (renderPath == MeshRenderPath.Deferred && forwardRendered)
                         continue;

@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 
 namespace MeshSetPlugin.ShaderData
 {
@@ -31,11 +32,11 @@ namespace MeshSetPlugin.ShaderData
 
         [IsReadOnly]
         [EbxFieldMeta(EbxFieldType.Array, arrayType: EbxFieldType.Struct)]
-        public ShaderSolutionState SolutionState => state;
+        public SolutionState SolutionState => state;
 
         public ShaderGraphPermutation ps = new ShaderGraphPermutation();
         public ShaderGraphPermutation vs = new ShaderGraphPermutation();
-        public ShaderSolutionState state;
+        public SolutionState state;
     }
 
     [EbxClassMeta(EbxFieldType.Struct)]
@@ -100,6 +101,121 @@ namespace MeshSetPlugin.ShaderData
     }
 
     [EbxClassMeta(EbxFieldType.Struct)]
+    public class SolutionState
+    {
+        [IsReadOnly]
+        [EbxFieldMeta(EbxFieldType.UInt32)]
+        public uint SurfaceShaderNameHash { get; set; }
+
+        [IsReadOnly]
+        [EbxFieldMeta(EbxFieldType.UInt32)]
+        public uint VertexShaderFragmentNameHash { get; set; }
+
+        [IsReadOnly]
+        [EbxFieldMeta(EbxFieldType.UInt32)]
+        public uint TessellationShaderFragmentNameHash { get; set; }
+
+        [IsReadOnly]
+        [EbxFieldMeta(EbxFieldType.UInt32)]
+        public uint GeometryDeclarationNameHash { get; set; }
+
+        [IsReadOnly]
+        [EbxFieldMeta(EbxFieldType.Boolean)]
+        public bool TessellationEnable { get; set; }
+
+        [IsReadOnly]
+        [EbxFieldMeta(EbxFieldType.CString)]
+        public CString SkinningMethod
+        {
+            get
+            {
+                Type type = TypeLibrary.GetType("ShaderSkinningMethod");
+                string typeStr;
+                if (type != null)
+                {
+                    typeStr = type.GetEnumName(skinningMethodType);
+                    if (!string.IsNullOrEmpty(typeStr))
+                    {
+                        typeStr = typeStr.Replace("ShaderSkinningMethod_", "");
+                        typeStr = char.ToLowerInvariant(typeStr[0]) + typeStr.Substring(1);
+                    }
+                    else
+                    {
+                        typeStr = "INVALID";
+                    }
+                }
+                else
+                {
+                    typeStr = "INVALID";
+                }
+                return typeStr;
+            }
+        }
+
+        [IsReadOnly]
+        [EbxFieldMeta(EbxFieldType.CString)]
+        public CString RenderMode
+        {
+            get
+            {
+                Type type = TypeLibrary.GetType("ShaderRenderMode");
+                string typeStr;
+                if (type != null)
+                {
+                    typeStr = type.GetEnumName(renderModeType);
+                    if (!string.IsNullOrEmpty(typeStr))
+                    {
+                        typeStr = typeStr.Replace("ShaderRenderMode_", "");
+                        typeStr = char.ToLowerInvariant(typeStr[0]) + typeStr.Substring(1);
+                    }
+                    else
+                    {
+                        typeStr = "INVALID";
+                    }
+                }
+                else
+                {
+                    typeStr = "INVALID";
+                }
+                return typeStr;
+            }
+        }
+
+        [IsReadOnly]
+        [EbxFieldMeta(EbxFieldType.CString)]
+        public CString InstancingMethod
+        {
+            get
+            {
+                Type type = TypeLibrary.GetType("ShaderInstancingMethod");
+                string typeStr;
+                if (type != null)
+                {
+                    typeStr = type.GetEnumName(instancingType);
+                    if (!string.IsNullOrEmpty(typeStr))
+                    {
+                        typeStr = typeStr.Replace("ShaderInstancingMethod_", "");
+                        typeStr = char.ToLowerInvariant(typeStr[0]) + typeStr.Substring(1);
+                    }
+                    else
+                    {
+                        typeStr = "INVALID";
+                    }
+                }
+                else
+                {
+                    typeStr = "INVALID";
+                }
+                return typeStr;
+            }
+        }
+
+        public uint skinningMethodType;
+        public uint renderModeType;
+        public uint instancingType;
+    }
+
+    [EbxClassMeta(EbxFieldType.Struct)]
     public class ExternalBuffer
     {
         [IsReadOnly]
@@ -150,13 +266,7 @@ namespace MeshSetPlugin.ShaderData
                 }
                 return funcStr;
             }
-            set
-            {
-                name = value;
-            }
         }
-
-        private CString name;
 
         //[IsReadOnly]
         //[EbxFieldMeta(EbxFieldType.CString)]
@@ -206,13 +316,7 @@ namespace MeshSetPlugin.ShaderData
                 }
                 return typeStr;
             }
-            set
-            {
-                type = value;
-            }
         }
-
-        private CString type;
 
         [IsReadOnly]
         [EbxFieldMeta(EbxFieldType.UInt8)]
@@ -252,13 +356,7 @@ namespace MeshSetPlugin.ShaderData
                 }
                 return funcStr;
             }
-            set
-            {
-                name = value;
-            }
         }
-
-        private CString name;
 
         [IsReadOnly]
         [EbxFieldMeta(EbxFieldType.CString)]
@@ -282,13 +380,7 @@ namespace MeshSetPlugin.ShaderData
                 }
                 return funcStr;
             }
-            set
-            {
-                type = value;
-            }
         }
-
-        private CString type;
 
         [IsReadOnly]
         [EbxFieldMeta(EbxFieldType.UInt32)]
@@ -328,13 +420,7 @@ namespace MeshSetPlugin.ShaderData
                 }
                 return funcStr;
             }
-            set
-            {
-                name = value;
-            }
         }
-
-        private CString name;
 
         [IsReadOnly]
         [EbxFieldMeta(EbxFieldType.CString)]
@@ -358,13 +444,7 @@ namespace MeshSetPlugin.ShaderData
                 }
                 return funcStr;
             }
-            set
-            {
-                type = value;
-            }
         }
-
-        private CString type;
 
         [IsReadOnly]
         [EbxFieldMeta(EbxFieldType.UInt32)]

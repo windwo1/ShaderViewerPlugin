@@ -8,6 +8,8 @@ using FrostySdk.Ebx;
 using FrostySdk.Interfaces;
 using FrostySdk.IO;
 using FrostySdk.Managers;
+using MeshSetPlugin.Resources;
+
 #if FROSTY_107
 using FrostySdk.Managers.Entries;
 #endif
@@ -69,7 +71,7 @@ namespace MeshSetPlugin.ShaderData
         private static Dictionary<uint, long> shaderMapOffsets = new Dictionary<uint, long>();
 
         private string mapCachePath;
-        private const uint cacheVersion = 1;
+        private const uint cacheVersion = 2;
 
         private uint dbSize = 0;
         static bool firstTimeLoad = true;
@@ -185,19 +187,16 @@ namespace MeshSetPlugin.ShaderData
                         {
                             DoubleSided = reader.ReadBoolean(),
                             GeometryDeclarationHash = reader.ReadUInt(),
-                            state = new ShaderSolutionState
+                            state = new SolutionState
                             {
-                                surfaceShaderNameHash = reader.ReadUInt(),
-                                vertexShaderFragmentNameHash = reader.ReadUInt(),
-                                tessellationShaderFragmentNameHash = reader.ReadUInt(),
-                                geometryDeclarationHash = reader.ReadUInt(),
-                                stateInfo1 = reader.ReadBytes(reader.ReadInt()),
-                                stateInfo2 = reader.ReadBytes(reader.ReadInt()),
-                                skinningMethod = (ShaderSkinningMethod)reader.ReadInt(),
-                                renderMode = (ShaderRenderMode)reader.ReadInt(),
-                                unknown = reader.ReadByte(),
-                                instancingMethod = (ShaderInstancingMethod)reader.ReadInt(),
-                                tessellationEnable = reader.ReadBoolean()
+                                SurfaceShaderNameHash = reader.ReadUInt(),
+                                VertexShaderFragmentNameHash = reader.ReadUInt(),
+                                TessellationShaderFragmentNameHash = reader.ReadUInt(),
+                                GeometryDeclarationNameHash = reader.ReadUInt(),
+                                TessellationEnable = reader.ReadBoolean(),
+                                skinningMethodType = reader.ReadUInt(),
+                                renderModeType = reader.ReadUInt(),
+                                instancingType = reader.ReadUInt(),
                             },
                             ps = ReadPermutation(reader),
                             vs = ReadPermutation(reader),
@@ -247,7 +246,6 @@ namespace MeshSetPlugin.ShaderData
             {
                 constFuncs.Add(new ConstantFunction
                 {
-                    Name = reader.ReadNullTerminatedString(),
                     CBufferIndex = reader.ReadUInt(),
                     ArraySize = reader.ReadUInt(),
                     MatrixDims = reader.ReadUInt(),
@@ -261,8 +259,6 @@ namespace MeshSetPlugin.ShaderData
             {
                 texFuncs.Add(new TextureFunction
                 {
-                    Name = reader.ReadNullTerminatedString(),
-                    Type = reader.ReadNullTerminatedString(),
                     Index = reader.ReadUInt(),
                     funcType = reader.ReadUInt(),
                     texType = reader.ReadUInt()
@@ -275,8 +271,6 @@ namespace MeshSetPlugin.ShaderData
             {
                 bufferFuncs.Add(new BufferFunction
                 {
-                    Name = reader.ReadNullTerminatedString(),
-                    Type = reader.ReadNullTerminatedString(),
                     Index = reader.ReadUInt(),
                     funcType = reader.ReadUInt(),
                     bufType = reader.ReadUInt()
@@ -297,7 +291,6 @@ namespace MeshSetPlugin.ShaderData
                 texConsts.Add(new ConstantTexture
                 {
                     Name = reader.ReadNullTerminatedString(),
-                    Type = reader.ReadNullTerminatedString(),
                     Index = reader.ReadByte(),
                     textureType = reader.ReadByte(),
                     nameHash = reader.ReadUInt()
@@ -504,19 +497,14 @@ namespace MeshSetPlugin.ShaderData
                             writer.Write(pair.GeometryDeclarationHash);
 
                             var state = pair.SolutionState;
-                            writer.Write(state.surfaceShaderNameHash);
-                            writer.Write(state.vertexShaderFragmentNameHash);
-                            writer.Write(state.tessellationShaderFragmentNameHash);
-                            writer.Write(state.geometryDeclarationHash);
-                            writer.Write(state.stateInfo1.Length);
-                            writer.Write(state.stateInfo1);
-                            writer.Write(state.stateInfo2.Length);
-                            writer.Write(state.stateInfo2);
-                            writer.Write((int)state.skinningMethod);
-                            writer.Write((int)state.renderMode);
-                            writer.Write(state.unknown);
-                            writer.Write((int)state.instancingMethod);
-                            writer.Write(state.tessellationEnable);
+                            writer.Write(state.SurfaceShaderNameHash);
+                            writer.Write(state.VertexShaderFragmentNameHash);
+                            writer.Write(state.TessellationShaderFragmentNameHash);
+                            writer.Write(state.GeometryDeclarationNameHash);
+                            writer.Write(state.TessellationEnable);
+                            writer.Write(state.skinningMethodType);
+                            writer.Write(state.renderModeType);
+                            writer.Write(state.instancingType);
 
                             WritePermutation(writer, pair.PixelShader);
                             WritePermutation(writer, pair.VertexShader);
@@ -537,7 +525,6 @@ namespace MeshSetPlugin.ShaderData
             writer.Write(permutation.ConstantFunctions.Count);
             foreach (var constFunc in permutation.ConstantFunctions)
             {
-                writer.WriteNullTerminatedString(constFunc.Name);
                 writer.Write(constFunc.CBufferIndex);
                 writer.Write(constFunc.ArraySize);
                 writer.Write(constFunc.MatrixDims);
@@ -548,8 +535,6 @@ namespace MeshSetPlugin.ShaderData
             writer.Write(permutation.TextureFunctions.Count);
             foreach (var texFunc in permutation.TextureFunctions)
             {
-                writer.WriteNullTerminatedString(texFunc.Name);
-                writer.WriteNullTerminatedString(texFunc.Type);
                 writer.Write(texFunc.Index);
                 writer.Write(texFunc.funcType);
                 writer.Write(texFunc.texType);
@@ -559,8 +544,6 @@ namespace MeshSetPlugin.ShaderData
             writer.Write(permutation.BufferFunctions.Count);
             foreach (var bufferFunc in permutation.BufferFunctions)
             {
-                writer.WriteNullTerminatedString(bufferFunc.Name);
-                writer.WriteNullTerminatedString(bufferFunc.Type);
                 writer.Write(bufferFunc.Index);
                 writer.Write(bufferFunc.funcType);
                 writer.Write(bufferFunc.bufType);
@@ -578,7 +561,6 @@ namespace MeshSetPlugin.ShaderData
             foreach (var texConst in permutation.TextureConstants)
             {
                 writer.WriteNullTerminatedString(texConst.Name);
-                writer.WriteNullTerminatedString(texConst.Type);
                 writer.Write(texConst.Index);
                 writer.Write(texConst.textureType);
                 writer.Write(texConst.nameHash);
@@ -1197,10 +1179,21 @@ namespace MeshSetPlugin.ShaderData
                             for (int i = 0; i < indices.Count; ++i)
                             {
                                 int solutionIndex = (int)indices[i];
+                                ShaderSolutionState state = states[solutionIndex];
                                 PermutationPair pair = new PermutationPair();
                                 pair.ps = new ShaderGraphPermutation();
                                 pair.vs = new ShaderGraphPermutation();
-                                pair.state = states[solutionIndex]; // @todo: create a new class for this
+                                pair.state = new SolutionState
+                                {
+                                    SurfaceShaderNameHash = state.surfaceShaderNameHash,
+                                    VertexShaderFragmentNameHash = state.vertexShaderFragmentNameHash,
+                                    TessellationShaderFragmentNameHash = state.tessellationShaderFragmentNameHash,
+                                    GeometryDeclarationNameHash = state.geometryDeclarationHash,
+                                    TessellationEnable = state.tessellationEnable,
+                                    skinningMethodType = state.skinningMethod,
+                                    renderModeType = state.renderMode,
+                                    instancingType = state.instancingMethod
+                                };
                                 List<VertexElementBase> elems;
                                 uint geomDeclHash;
                                 if (Version > (int)ShaderDBVersion.BattlefieldV)
