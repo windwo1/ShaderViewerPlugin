@@ -4,6 +4,7 @@ using FrostySdk.Ebx;
 using FrostySdk.IO;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -37,6 +38,15 @@ namespace MeshSetPlugin.ShaderData
         public ShaderGraphPermutation ps = new ShaderGraphPermutation();
         public ShaderGraphPermutation vs = new ShaderGraphPermutation();
         public SolutionState state;
+
+        public bool IsForwardRendered()
+        {
+            Type type = TypeLibrary.GetType("ShaderRenderMode");
+            // some games start the gbuffer layout count at 0, some start it at 1
+            string deferredName = type.GetEnumNames().Contains("ShaderRenderMode_DeferredShadingGBufferLayout4") ? "deferredShadingGBufferLayout4" : "deferredShadingGBufferLayout3";
+
+            return state.RenderMode != deferredName || state.RenderMode.ToString().Contains("Emissive");
+        }
     }
 
     [EbxClassMeta(EbxFieldType.Struct)]
@@ -46,9 +56,40 @@ namespace MeshSetPlugin.ShaderData
         public CString RenderPathName { get; set; } = "";
 
         [IsReadOnly]
+        [EbxFieldMeta(EbxFieldType.CString)]
+        public CString ShaderType
+        {
+            get
+            {
+                Type type = TypeLibrary.GetType("SurfaceShaderType");
+                string typeStr;
+                if (type != null)
+                {
+                    typeStr = type.GetEnumName(shaderType);
+                    if (!string.IsNullOrEmpty(typeStr))
+                    {
+                        typeStr = typeStr.Replace("SurfaceShaderType_", "");
+                        typeStr = char.ToLowerInvariant(typeStr[0]) + typeStr.Substring(1);
+                    }
+                    else
+                    {
+                        typeStr = "INVALID";
+                    }
+                }
+                else
+                {
+                    typeStr = "INVALID";
+                }
+                return typeStr;
+            }
+        }
+
+        [IsReadOnly]
         [Description("Contains information for pairs of pixel and vertex shader permutations.")]
         [EbxFieldMeta(EbxFieldType.Array, arrayType: EbxFieldType.Struct)]
         public List<PermutationPair> PermutationPairs { get; set; } = new List<PermutationPair>();
+
+        public uint shaderType;
     }
 
     [EbxClassMeta(EbxFieldType.Struct)]

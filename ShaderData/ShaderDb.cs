@@ -71,7 +71,7 @@ namespace MeshSetPlugin.ShaderData
         private static Dictionary<uint, long> shaderMapOffsets = new Dictionary<uint, long>();
 
         private string mapCachePath;
-        private const uint cacheVersion = 2;
+        private const uint cacheVersion = 3;
 
         private uint dbSize = 0;
         static bool firstTimeLoad = true;
@@ -178,6 +178,7 @@ namespace MeshSetPlugin.ShaderData
                 for (int i = 0; i < renderPathCount; i++)
                 {
                     string renderPathName = reader.ReadNullTerminatedString();
+                    uint shaderType = reader.ReadUInt();
 
                     List<PermutationPair> pairs = new List<PermutationPair>();
                     int pairCount = reader.ReadInt();
@@ -208,6 +209,7 @@ namespace MeshSetPlugin.ShaderData
                     var path = new RenderPath
                     {
                         RenderPathName = renderPathName,
+                        shaderType = shaderType,
                         PermutationPairs = pairs
                     };
                     renderPaths.Add(path);
@@ -490,6 +492,7 @@ namespace MeshSetPlugin.ShaderData
                     foreach (var renderPath in kvp.Value)
                     {
                         writer.WriteNullTerminatedString(renderPath.RenderPathName);
+                        writer.Write(renderPath.shaderType);
                         writer.Write(renderPath.PermutationPairs.Count);
                         foreach (var pair in renderPath.PermutationPairs)
                         {
@@ -1020,16 +1023,18 @@ namespace MeshSetPlugin.ShaderData
 
                     uint shaderCount = reader.ReadUInt();
                     Dictionary<uint, List<uint>> surfaceShaderSolutionMap = new Dictionary<uint, List<uint>>();
+                    List<byte> shaderTypes = new List<byte>();
                     // get shader map
                     for (int i = 0; i < shaderCount; ++i)
                     {
                         uint key = reader.ReadUInt();
+                        byte shaderType;
 
-                        // shaderType, maps to SurfaceShaderType
+                        // maps to SurfaceShaderType
                         if (Version != (int)ShaderDBVersion.MassEffectAndromeda && Version != (int)ShaderDBVersion.BattlefieldV)
-                            reader.ReadUInt();
+                            shaderType = (byte)reader.ReadUInt();
                         else
-                            reader.ReadByte();
+                            shaderType = reader.ReadByte();
                         // unknown data
                         switch ((ShaderDBVersion)Version)
                         {
@@ -1146,10 +1151,12 @@ namespace MeshSetPlugin.ShaderData
                             }
                         }
                         surfaceShaderSolutionMap.Add(key, solutionIndices);
+                        shaderTypes.Add(shaderType);
                     }
 
                     try
                     {
+                        int index = 0;
                         foreach (uint key in surfaceShaderSolutionMap.Keys)
                         {
                             List<uint> indices = surfaceShaderSolutionMap[key];
@@ -1167,12 +1174,14 @@ namespace MeshSetPlugin.ShaderData
                             if (match != null)
                             {
                                 permutationPairs = match.PermutationPairs;
+                                match.shaderType = shaderTypes[index];
                             }
                             else
                             {
                                 RenderPath path = new RenderPath() { RenderPathName = pathName };
                                 shaderMap[key].Add(path);
                                 permutationPairs = path.PermutationPairs;
+                                path.shaderType = shaderTypes[index];
                             }
 
                             // fill in shader data
@@ -1235,6 +1244,8 @@ namespace MeshSetPlugin.ShaderData
 
                                 permutationPairs.Add(pair);
                             }
+
+                            index++;
                         }
 
                         Loaded = true;

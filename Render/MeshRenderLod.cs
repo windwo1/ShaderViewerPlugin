@@ -209,7 +209,9 @@ namespace MeshSetPlugin.Render
             if (graphInfo.RenderPaths.Count < 1)
                 return null;
 
-            var renderPath = graphInfo.RenderPaths.FirstOrDefault(p => p.RenderPathName == "ShaderRenderPath_Dx11");
+            var renderPath = graphInfo.RenderPaths.Count == 0 ?
+                graphInfo.RenderPaths.FirstOrDefault() :
+                graphInfo.RenderPaths.FirstOrDefault(p => p.RenderPathName == "ShaderRenderPath_Dx11");
 
             if (renderPath == null)
                 return null;
@@ -227,12 +229,12 @@ namespace MeshSetPlugin.Render
 
                 pairs = pairs.Where(p => CheckPermutationPair(p, skinningMethod));
 
-                bool forwardRendered = !pairs.Any(p => p.SolutionState.RenderMode == "deferredShadingGBufferLayout4");
+                bool forwardRendered = !pairs.Any(p => p.IsForwardRendered());
 
                 foreach (var pair in pairs)
                 {
                     // only use forward rendered permutations if this shader is forward rendered
-                    if (!forwardRendered && pair.SolutionState.RenderMode != "deferredShadingGBufferLayout4")
+                    if (!forwardRendered && !pair.IsForwardRendered())
                         continue;
 
                     perm = pair;
@@ -277,7 +279,7 @@ namespace MeshSetPlugin.Render
 
             List<ShaderDataField> vsFunctions = new List<ShaderDataField>();
             List<ShaderDataField> psFunctions = new List<ShaderDataField>();
-            foreach (var function in perm.VertexShader.ConstantFunctions)
+            foreach (var function in perm.VertexShader.ConstantFunctions.OrderBy(f => f.CBufferIndex))
             {
                 vsFunctions.Add(new ShaderDataField
                 {
@@ -285,7 +287,7 @@ namespace MeshSetPlugin.Render
                     Size = (int)(function.MatrixDims * 4 * 4) // just kinda guessed this, i hope its right
                 });
             }
-            foreach (var function in perm.PixelShader.ConstantFunctions)
+            foreach (var function in perm.PixelShader.ConstantFunctions.OrderBy(f => f.CBufferIndex))
             {
                 psFunctions.Add(new ShaderDataField
                 {
@@ -297,6 +299,7 @@ namespace MeshSetPlugin.Render
             permutation.VSFunctionConstants = new ShaderDataCBuffer(vsFunctions);
             permutation.PSFunctionConstants = new ShaderDataCBuffer(psFunctions);
 
+            permutation.ShaderType = renderPath.ShaderType;
             permutation.IsCustomShader = true;
             renderSection.IsShaderValid = true;
 
@@ -315,7 +318,7 @@ namespace MeshSetPlugin.Render
             }
 
             var skinning = pair.SolutionState.SkinningMethod;
-            if (skinningMethod != "none")
+            if (skinningMethod != "none" && skinningMethod != "linear1Bone")
             {
                 if (skinning != skinningMethod)
                     return false;
@@ -345,17 +348,16 @@ namespace MeshSetPlugin.Render
 
         private byte[] ExportBytecodeInternal(ShaderType type, PermutationPair pair)
         {
-            string dbPath = pair.ps.shaderDataLookup.DbPath;
+            bool isPs = type == ShaderType.PixelShader;
+            var lookupData = isPs ? pair.PixelShader.shaderDataLookup : pair.VertexShader.shaderDataLookup;
+
+            string dbPath = lookupData.DbPath;
             Stream resStream = App.AssetManager.GetRes(App.AssetManager.GetResEntry(dbPath));
 
             using (var reader = new NativeReader(resStream))
             {
-                bool isPs = type == ShaderType.PixelShader;
-
                 // seek to bytecode offset
-                var lookupData = isPs ? pair.PixelShader.shaderDataLookup : pair.VertexShader.shaderDataLookup;
                 reader.Position = lookupData.DbOffset;
-
                 return reader.ReadBytes((int)lookupData.ShaderSize);
             }
         }
@@ -424,7 +426,7 @@ namespace MeshSetPlugin.Render
 
                 if (section.Permutation.PermutationData != null)
                 {
-                    bool forwardRendered = section.Permutation.PermutationData.SolutionState.RenderMode != "deferredShadingGBufferLayout4";
+                    bool forwardRendered = section.Permutation.RenderTargetCount < 3;
 
                     if (renderPath == MeshRenderPath.Deferred && forwardRendered)
                         continue;
@@ -432,7 +434,7 @@ namespace MeshSetPlugin.Render
                     if (renderPath == MeshRenderPath.Forward && !forwardRendered)
                         continue;
 
-                    if (renderPath == MeshRenderPath.Forward)
+                    if (renderPath == MeshRenderPath.Forward && section.Permutation.ShaderType != "opaque")
                     {
                         RenderTargetBlendDescription dualDesc = new RenderTargetBlendDescription()
                         {
@@ -459,7 +461,6 @@ namespace MeshSetPlugin.Render
                         };
 
                         RenderTargetBlendDescription rtDesc = section.Permutation.RenderTargetCount == 2 ? dualDesc : singleDesc;
-
                         context.OutputMerger.BlendState = D3DUtils.CreateBlendState(rtDesc);
                     }
                 }
@@ -476,6 +477,17 @@ namespace MeshSetPlugin.Render
                         bool flipped = transform.ScaleVector.X < 0 || transform.ScaleVector.Y < 0 || transform.ScaleVector.Z < 0;
                         bool doubleSided = perm.PermutationData.DoubleSided;
                         context.Rasterizer.State = D3DUtils.CreateRasterizerState(doubleSided ? CullMode.None : flipped ? CullMode.Front : CullMode.Back);
+
+                        // dont own many frostbite games so i cant really check other games lol
+                        int boneCount = 0;
+                        if (ProfilesLibrary.DataVersion <= (int)ProfileVersion.PlantsVsZombiesGardenWarfare)
+                        {
+                            boneCount = 60;
+                        }
+                        else
+                        {
+                            boneCount = 240;
+                        }
 
                         if (perm.ViewConstants != null)
                         {
@@ -503,12 +515,12 @@ namespace MeshSetPlugin.Render
                         context.VertexShader.SetSampler(2, sampler);
 
                         List<Matrix> boneMatrices = new List<Matrix>();
-                        for (int i = 0; i < 240; i++)
+                        for (int i = 0; i < boneCount; i++)
                         {
                             boneMatrices.Add(Matrix.Transpose(transform));
                         }
 
-                        perm.boneBuffer.Update(context, section.Skeleton.BoneCount, boneMatrices.ToArray());
+                        perm.boneBuffer.Update(context, boneCount, boneMatrices.ToArray());
 
                         if (perm.VSResourceSlots.TryGetValue("instanceVectorBuffer", out int vsBoneBuf))
                             context.VertexShader.SetShaderResource(vsBoneBuf, perm.boneBuffer.SRV);
@@ -561,7 +573,7 @@ namespace MeshSetPlugin.Render
                         bool useBoneVectors = !(perm.PermutationData.VertexShader.ConstantFunctions.Any(f => f.Name == "boneVectors")
                                              && perm.PermutationData.VertexShader.ConstantFunctions.Any(f => f.Name == "worldMatrix"));
 
-                        Matrix48[] boneVectors = new Matrix48[240];
+                        Matrix48[] boneVectors = new Matrix48[boneCount];
                         for (int i = 0; i < boneVectors.Length; i++)
                         {
                             Matrix m = transform;

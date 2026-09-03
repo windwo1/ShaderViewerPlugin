@@ -198,8 +198,11 @@ namespace MeshSetPlugin.Render
 
         public void Upload(DeviceContext c)
         {
-            BufferDescription description = new BufferDescription(size, BindFlags.ConstantBuffer, ResourceUsage.Dynamic) { CpuAccessFlags = CpuAccessFlags.Write };
-            Buffer = new Buffer(c.Device, description);
+            if (Buffer == null)
+            {
+                BufferDescription description = new BufferDescription(size, BindFlags.ConstantBuffer, ResourceUsage.Dynamic) { CpuAccessFlags = CpuAccessFlags.Write };
+                Buffer = new Buffer(c.Device, description);
+            }
 
             c.MapSubresource(Buffer, MapMode.WriteDiscard, MapFlags.None, out DataStream stream);
             foreach (var field in existing)
@@ -304,6 +307,7 @@ namespace MeshSetPlugin.Render
         public bool IsCustomShader { get; set; }
         public int RenderTargetCount { get; set; }
         public int MaxBonesPerVertex { get; set; }
+        public string ShaderType { get; set; }
 
         public List<ShaderParameter> VertexParameters = new List<ShaderParameter>();
         public List<ShaderParameter> VertexTextures = new List<ShaderParameter>();
