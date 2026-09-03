@@ -502,7 +502,10 @@ namespace MeshSetPlugin.Render
                             boneCount = 240;
                         }
 
-                        context.OutputMerger.DepthStencilState = D3DUtils.CreateDepthStencilState(depthComparison: Comparison.LessEqual, depthWriteMask: depthMask);
+                        if (renderPath == MeshRenderPath.Forward)
+                        {
+                            context.OutputMerger.DepthStencilState = D3DUtils.CreateDepthStencilState(depthComparison: Comparison.LessEqual, depthWriteMask: depthMask);
+                        }
 
                         if (perm.ViewConstants != null)
                         {

@@ -3585,11 +3585,18 @@ namespace MeshSetPlugin
             }
             else if (e.Item.Name.Contains("SkyboxTexture"))
             {
-                EbxAssetEntry entry = App.AssetManager.GetEbxEntry(previewSettings.SkyboxTexture.External.FileGuid);
-                screen.SetSkyboxTexture(entry);
+                if (ProfilesLibrary.DataVersion != (int)ProfileVersion.PlantsVsZombiesGardenWarfare)
+                {
+                    EbxAssetEntry entry = App.AssetManager.GetEbxEntry(previewSettings.SkyboxTexture.External.FileGuid);
+                    screen.SetSkyboxTexture(entry);
 
-                Config.Add("SkyboxTexture", entry == null ? "" : entry.Name, ConfigScope.Game);
-                Config.Save();
+                    Config.Add("SkyboxTexture", entry == null ? "" : entry.Name, ConfigScope.Game);
+                    Config.Save();
+                }
+                else
+                {
+                    App.Logger.LogWarning("Skybox textures currently aren't supported on " + ProfilesLibrary.DisplayName);
+                }
             }
             else if (e.Item.Path.Contains("PreviewLights"))
             {

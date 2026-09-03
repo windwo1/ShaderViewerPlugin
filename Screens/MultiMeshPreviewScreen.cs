@@ -1,6 +1,7 @@
 ﻿using Frosty.Core;
 using Frosty.Core.Screens;
 using Frosty.Core.Viewport;
+using FrostySdk;
 using FrostySdk.IO;
 using FrostySdk.Managers;
 using MeshSetPlugin.Render;
@@ -236,9 +237,12 @@ namespace MeshSetPlugin.Screens
                 LookupTable = (defaultLookupTable != null)
                     ? state.TextureLibrary.LoadTextureAsset(defaultLookupTable.Guid)
                     : null;
-                Skybox = (defaultSkybox != null)
-                    ? state.TextureLibrary.LoadTextureAsset(defaultSkybox.Guid, true)
-                    : null;
+                if (ProfilesLibrary.DataVersion != (int)ProfileVersion.PlantsVsZombiesGardenWarfare)
+                {
+                    Skybox = (defaultSkybox != null)
+                        ? state.TextureLibrary.LoadTextureAsset(defaultSkybox.Guid, true)
+                        : null;
+                }
 
                 Globals = new GlobalsData();
 
@@ -264,13 +268,29 @@ namespace MeshSetPlugin.Screens
                     switch (component.GetType().Name)
                     {
                         case "OutdoorLightComponentData":
-                            SunIntensity = component.SunIntensity * 100;
+                            if (ProfilesLibrary.DataVersion != (int)ProfileVersion.PlantsVsZombiesGardenWarfare)
+                            {
+                                SunIntensity = component.SunIntensity * 100;
+                            }
                             SunColor = SharpDXUtils.FromVec3(component.SunColor);
                             break;
                         case "TonemapComponentData":
                             BloomStrength = (component.BloomScale.x * component.BloomScale.y * component.BloomScale.z) / 3;
-                            MinEV100 = component.MinEV + 8.0f;
-                            MaxEV100 = component.MaxEV + 20.0f;
+
+                            float minEv = 8.0f;
+                            float maxEv = 20.0f;
+                            if (ProfilesLibrary.DataVersion == (int)ProfileVersion.PlantsVsZombiesGardenWarfare)
+                            {
+                                minEv = component.MinExposure + 8.0f;
+                                maxEv = component.MaxExposure + 20.0f;
+                            }
+                            else
+                            {
+                                minEv = component.MinEV + 8.0f;
+                                maxEv = component.MaxEV + 20.0f;
+                            }
+                            MinEV100 = minEv;
+                            MaxEV100 = maxEv;
                             break;
                         case "ColorCorrectionComponentData":
                             if (component.ColorGradingEnable == true && component.ColorGradingTexture.Type != PointerRefType.Null)
@@ -282,7 +302,7 @@ namespace MeshSetPlugin.Screens
                             }
                             break;
                         case "SkyComponentData":
-                            if (component.SkyType.ToString().Contains("Hdri"))
+                            if (ProfilesLibrary.DataVersion != (int)ProfileVersion.PlantsVsZombiesGardenWarfare)
                             {
                                 var sky = App.AssetManager.GetEbxEntry(component.HdriTexture.External.FileGuid);
                                 Skybox = (sky != null)
