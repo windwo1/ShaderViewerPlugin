@@ -2238,7 +2238,7 @@ namespace MeshSetPlugin.Screens
                 UpdateViewConstants(true);
 
                 Viewport.Context.OutputMerger.SetRenderTargets(Viewport.DepthBufferDSV, lightAccumulationTexture.RTV);
-                Viewport.Context.OutputMerger.DepthStencilState = D3DUtils.CreateDepthStencilState(depthComparison: Comparison.LessEqual, depthWriteMask: DepthWriteMask.Zero);
+                Viewport.Context.OutputMerger.DepthStencilState = D3DUtils.CreateDepthStencilState(depthComparison: Comparison.LessEqual);
                 Viewport.Context.Rasterizer.State = D3DUtils.CreateRasterizerState(CullMode.None, fillMode: FillMode.Solid, frontCounterClockwise: true, depthClip: true, multisampled: true);
 
                 Viewport.Context.VertexShader.SetConstantBuffer(0, viewConstants.Buffer);

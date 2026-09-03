@@ -229,12 +229,17 @@ namespace MeshSetPlugin.Render
 
                 pairs = pairs.Where(p => CheckPermutationPair(p, skinningMethod));
 
-                bool forwardRendered = !pairs.Any(p => p.IsForwardRendered());
+                bool forwardRendered = pairs.All(p => p.IsForwardRendered());
+                bool hasDynamicEnvmap = pairs.Any(p => p.SolutionState.RenderMode == "dynamicEnvmap");
 
                 foreach (var pair in pairs)
                 {
                     // only use forward rendered permutations if this shader is forward rendered
-                    if (!forwardRendered && !pair.IsForwardRendered())
+                    if (!forwardRendered && pair.IsForwardRendered())
+                        continue;
+
+                    // prefer dynamicEnvmap
+                    if (forwardRendered && hasDynamicEnvmap && pair.SolutionState.RenderMode != "dynamicEnvmap")
                         continue;
 
                     perm = pair;
@@ -324,7 +329,7 @@ namespace MeshSetPlugin.Render
                     return false;
             }
 
-            if (pair.SolutionState.InstancingMethod != "none")
+            if (pair.SolutionState.InstancingMethod.ToString().StartsWith("dxBuffer"))
                 return false;
 
             if (pair.SolutionState.RenderMode == "zOnly")
@@ -436,6 +441,12 @@ namespace MeshSetPlugin.Render
 
                     if (renderPath == MeshRenderPath.Forward && section.Permutation.ShaderType != "opaque")
                     {
+                        BlendOption blending = BlendOption.One;
+                        if (ProfilesLibrary.DataVersion <= (int)ProfileVersion.PlantsVsZombiesGardenWarfare)
+                        {
+                            blending = BlendOption.InverseSourceAlpha;
+                        }
+
                         RenderTargetBlendDescription dualDesc = new RenderTargetBlendDescription()
                         {
                             IsBlendEnabled = true,
@@ -452,10 +463,10 @@ namespace MeshSetPlugin.Render
                         {
                             IsBlendEnabled = true,
                             SourceBlend = BlendOption.One,
-                            DestinationBlend = BlendOption.One,
+                            DestinationBlend = blending,
                             BlendOperation = BlendOperation.Add,
                             SourceAlphaBlend = BlendOption.One,
-                            DestinationAlphaBlend = BlendOption.One,
+                            DestinationAlphaBlend = blending,
                             AlphaBlendOperation = BlendOperation.Add,
                             RenderTargetWriteMask = ColorWriteMaskFlags.All
                         };
@@ -480,14 +491,18 @@ namespace MeshSetPlugin.Render
 
                         // dont own many frostbite games so i cant really check other games lol
                         int boneCount = 0;
+                        DepthWriteMask depthMask = DepthWriteMask.Zero;
                         if (ProfilesLibrary.DataVersion <= (int)ProfileVersion.PlantsVsZombiesGardenWarfare)
                         {
                             boneCount = 60;
+                            depthMask = DepthWriteMask.All;
                         }
                         else
                         {
                             boneCount = 240;
                         }
+
+                        context.OutputMerger.DepthStencilState = D3DUtils.CreateDepthStencilState(depthComparison: Comparison.LessEqual, depthWriteMask: depthMask);
 
                         if (perm.ViewConstants != null)
                         {
@@ -529,12 +544,31 @@ namespace MeshSetPlugin.Render
 
                         if (perm.PermutationData.PixelShader.ConstantFunctions.Count > 0)
                         {
+                            Vector4[] shLightProbe = renderState.CurrentScreen.SHLightProbe;
+
+                            float[] topBasis = SphericalHarmonicsHelper.shEvaluateDir(Vector3.UnitY);
+                            Vector4 topColor = Vector4.Zero;
+                            for (int i = 0; i < 9; i++)
+                            {
+                                topColor += new Vector4(topBasis[i] * new Vector3(shLightProbe[i].X, shLightProbe[i].Y, shLightProbe[i].Z), 1.0f);
+                            }
+
+                            float[] bottomBasis = SphericalHarmonicsHelper.shEvaluateDir(-Vector3.UnitY);
+                            Vector4 bottomColor = Vector4.Zero;
+                            for (int i = 0; i < 9; i++)
+                            {
+                                bottomColor += new Vector4(bottomBasis[i] * new Vector3(shLightProbe[i].X, shLightProbe[i].Y, shLightProbe[i].Z), 1.0f);
+                            }
+
                             // idk what this is supposed to be, but some water shaders use it
-                            perm.PSFunctionConstants.Set("distortionMaxValue", new Vector4(1, 1, 1, 1));
+                            perm.PSFunctionConstants.Set("distortionMaxValue", Vector4.One);
 
                             perm.PSFunctionConstants.SetArray("lightProbeShL2", renderState.CurrentScreen.SHLightProbe);
                             perm.PSFunctionConstants.Set("outdoorLightDir", Vector3.Normalize(renderState.CurrentScreen.SunPosition * new Vector3(-1, 1, 1)));
                             perm.PSFunctionConstants.Set("outdoorLightIlluminanceAndSpecularScale", new Vector3(3.0f, 3.0f, 3.0f));
+                            perm.PSFunctionConstants.Set("outdoorLightKeyColorEnvmap", new Vector4(renderState.CurrentScreen.SunColor * renderState.CurrentScreen.SunIntensity / 1000.0f, 1.0f));
+                            perm.PSFunctionConstants.Set("outdoorLightTopColorEnvmap", topColor);
+                            perm.PSFunctionConstants.Set("outdoorLightBottomColorEnvmap", bottomColor);
                             perm.PSFunctionConstants.Set("worldMatrix", transform);
                             perm.PSFunctionConstants.Upload(context);
                         }

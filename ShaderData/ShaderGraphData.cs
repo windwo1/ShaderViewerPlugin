@@ -41,11 +41,16 @@ namespace MeshSetPlugin.ShaderData
 
         public bool IsForwardRendered()
         {
+            string renderMode = state.RenderMode.ToString();
+
+            if (renderMode == "forward" || renderMode == "forwardSimple" || renderMode == "dynamicEnvmap" || renderMode.Contains("Emissive") || renderMode.Contains("Unlit"))
+                return true;
+
             Type type = TypeLibrary.GetType("ShaderRenderMode");
             // some games start the gbuffer layout count at 0, some start it at 1
             string deferredName = type.GetEnumNames().Contains("ShaderRenderMode_DeferredShadingGBufferLayout4") ? "deferredShadingGBufferLayout4" : "deferredShadingGBufferLayout3";
 
-            return state.RenderMode != deferredName || state.RenderMode.ToString().Contains("Emissive");
+            return renderMode != deferredName;
         }
     }
 

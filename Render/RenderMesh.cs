@@ -507,17 +507,6 @@ namespace MeshSetPlugin.Render
 
                     VSResourceSlots[bindDesc.Name] = bindDesc.BindPoint;
                 }
-            }
-            using (var reflection = new ShaderReflection(psBytecode))
-            {
-                var desc = reflection.Description;
-
-                for (int i = 0; i < desc.BoundResources; i++)
-                {
-                    var bindDesc = reflection.GetResourceBindingDescription(i);
-
-                    PSResourceSlots[bindDesc.Name] = bindDesc.BindPoint;
-                }
 
                 if (desc.ConstantBuffers > 0)
                 {
@@ -546,6 +535,17 @@ namespace MeshSetPlugin.Render
                         ViewConstants = new ShaderDataCBuffer(fields);
                     }
                     catch (SharpDXException) { }
+                }
+            }
+            using (var reflection = new ShaderReflection(psBytecode))
+            {
+                var desc = reflection.Description;
+
+                for (int i = 0; i < desc.BoundResources; i++)
+                {
+                    var bindDesc = reflection.GetResourceBindingDescription(i);
+
+                    PSResourceSlots[bindDesc.Name] = bindDesc.BindPoint;
                 }
 
                 RenderTargetCount = desc.OutputParameters;
