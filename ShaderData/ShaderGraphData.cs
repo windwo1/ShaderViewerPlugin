@@ -1,7 +1,10 @@
-﻿using FrostySdk;
+﻿using Frosty.Core.Attributes;
+using Frosty.Core.Viewport;
+using FrostySdk;
 using FrostySdk.Attributes;
 using FrostySdk.Ebx;
 using FrostySdk.IO;
+using SharpDX.Direct3D11;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -24,6 +27,35 @@ namespace MeshSetPlugin.ShaderData
         public bool DoubleSided { get; set; }
 
         [IsReadOnly]
+        [EbxFieldMeta(EbxFieldType.CString)]
+        public CString BlendMode
+        {
+            get
+            {
+                Type type = TypeLibrary.GetType("ShaderBlendMode");
+                string typeStr;
+                if (type != null)
+                {
+                    typeStr = type.GetEnumName(blendModeType);
+                    if (!string.IsNullOrEmpty(typeStr))
+                    {
+                        typeStr = typeStr.Replace("ShaderBlendMode_", "");
+                        typeStr = char.ToLowerInvariant(typeStr[0]) + typeStr.Substring(1);
+                    }
+                    else
+                    {
+                        typeStr = "INVALID";
+                    }
+                }
+                else
+                {
+                    typeStr = "INVALID";
+                }
+                return typeStr;
+            }
+        }
+
+        [IsReadOnly]
         [EbxFieldMeta(EbxFieldType.Array, arrayType: EbxFieldType.Struct)]
         public ShaderGraphPermutation PixelShader => ps;
 
@@ -39,6 +71,8 @@ namespace MeshSetPlugin.ShaderData
         public ShaderGraphPermutation vs = new ShaderGraphPermutation();
         public SolutionState state;
 
+        public uint blendModeType;
+
         public bool IsForwardRendered()
         {
             string renderMode = state.RenderMode.ToString();
@@ -51,6 +85,52 @@ namespace MeshSetPlugin.ShaderData
             string deferredName = type.GetEnumNames().Contains("ShaderRenderMode_DeferredShadingGBufferLayout4") ? "deferredShadingGBufferLayout4" : "deferredShadingGBufferLayout3";
 
             return renderMode != deferredName;
+        }
+
+        public RenderTargetBlendDescription GetBlendStateDesc(int renderTargetCount)
+        {
+            bool old = ProfilesLibrary.DataVersion <= (int)ProfileVersion.PlantsVsZombiesGardenWarfare;
+
+            RenderTargetBlendDescription desc = new RenderTargetBlendDescription()
+            {
+                IsBlendEnabled = true,
+                BlendOperation = BlendOperation.Add,
+                AlphaBlendOperation = BlendOperation.Add,
+                RenderTargetWriteMask = ColorWriteMaskFlags.All
+            };
+
+            switch (BlendMode)
+            {
+                case "lerpPremultiplied":
+                    desc.SourceBlend = BlendOption.One;
+                    desc.DestinationBlend = BlendOption.InverseSourceAlpha;
+                    desc.SourceAlphaBlend = BlendOption.One;
+                    desc.DestinationAlphaBlend = BlendOption.InverseSourceAlpha;
+                    break;
+
+                case "additive":
+                    desc.SourceBlend = BlendOption.One;
+                    desc.DestinationBlend = BlendOption.One;
+                    desc.SourceAlphaBlend = BlendOption.One;
+                    desc.DestinationAlphaBlend = BlendOption.One;
+                    break;
+
+                case "multiply":
+                    desc.SourceBlend = BlendOption.Zero;
+                    desc.DestinationBlend = BlendOption.SourceColor;
+                    desc.SourceAlphaBlend = BlendOption.Zero;
+                    desc.DestinationAlphaBlend = BlendOption.SourceColor;
+                    break;
+
+                default:
+                    desc.SourceBlend = old ? BlendOption.SourceAlpha : BlendOption.One;
+                    desc.DestinationBlend = renderTargetCount == 2 ? BlendOption.SecondarySourceColor : old ? BlendOption.InverseSourceAlpha : BlendOption.One;
+                    desc.SourceAlphaBlend = BlendOption.One;
+                    desc.DestinationAlphaBlend = renderTargetCount == 2 ? BlendOption.InverseSourceAlpha : old ? BlendOption.InverseSourceAlpha : BlendOption.One;
+                    break;
+            }
+
+            return desc;
         }
     }
 

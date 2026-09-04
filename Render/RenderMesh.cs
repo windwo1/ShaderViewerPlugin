@@ -307,7 +307,7 @@ namespace MeshSetPlugin.Render
         public bool IsCustomShader { get; set; }
         public int RenderTargetCount { get; set; }
         public int MaxBonesPerVertex { get; set; }
-        public string ShaderType { get; set; }
+        public string ShaderType { get; set; } = "opaque";
 
         public List<ShaderParameter> VertexParameters = new List<ShaderParameter>();
         public List<ShaderParameter> VertexTextures = new List<ShaderParameter>();

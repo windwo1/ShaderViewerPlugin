@@ -36,6 +36,7 @@ using FrostySdk.Managers;
 [assembly: RegisterAssetDefinition("RigidMeshAsset", typeof(RigidMeshAssetDefinition))]
 [assembly: RegisterAssetDefinition("SkinnedMeshAsset", typeof(SkinnedMeshAssetDefinition))]
 [assembly: RegisterAssetDefinition("CompositeMeshAsset", typeof(CompositeMeshAssetDefinition))]
+[assembly: RegisterAssetDefinition("ShaderGraph", typeof(MeshSetPlugin.ShaderData.ShaderGraphAssetDefinition))]
 
 [assembly: RegisterStartupAction(typeof(MeshSetPlugin.ShaderData.Startup))]
 

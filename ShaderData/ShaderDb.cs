@@ -71,7 +71,7 @@ namespace MeshSetPlugin.ShaderData
         private static Dictionary<uint, long> shaderMapOffsets = new Dictionary<uint, long>();
 
         private string mapCachePath;
-        private const uint cacheVersion = 3;
+        private const uint cacheVersion = 4;
 
         private uint dbSize = 0;
         static bool firstTimeLoad = true;
@@ -188,6 +188,7 @@ namespace MeshSetPlugin.ShaderData
                         {
                             DoubleSided = reader.ReadBoolean(),
                             GeometryDeclarationHash = reader.ReadUInt(),
+                            blendModeType = reader.ReadUInt(),
                             state = new SolutionState
                             {
                                 SurfaceShaderNameHash = reader.ReadUInt(),
@@ -498,6 +499,7 @@ namespace MeshSetPlugin.ShaderData
                         {
                             writer.Write(pair.DoubleSided);
                             writer.Write(pair.GeometryDeclarationHash);
+                            writer.Write(pair.blendModeType);
 
                             var state = pair.SolutionState;
                             writer.Write(state.SurfaceShaderNameHash);
@@ -1218,6 +1220,7 @@ namespace MeshSetPlugin.ShaderData
 
                                 pair.GeometryDeclarationHash = geomDeclHash;
                                 pair.DoubleSided = (solutions[solutionIndex].renderFlags & 0x01) != 0;
+                                pair.blendModeType = solutions[solutionIndex].blendMode;
                                 pair.PixelShader.VertexElements = elems;
                                 int pixelPermutationIdx = (int)solutions[solutionIndex].pixelPermutationIndex;
                                 if (pixelPermutationIdx > 0)

@@ -2,6 +2,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="clr-namespace:MeshSetPlugin"
+    xmlns:shaderdata="clr-namespace:MeshSetPlugin.ShaderData"
     xmlns:core="clr-namespace:Frosty.Core.Controls;assembly=FrostyCore"
     xmlns:ctrl="clr-namespace:Frosty.Controls;assembly=FrostyControls"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -432,5 +433,20 @@
             </Setter.Value>
         </Setter>
     </Style>
-    
+
+    <!--ShaderGraphEditor-->
+    <Style TargetType="{x:Type shaderdata:ShaderGraphEditor}">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type shaderdata:ShaderGraphEditor}">
+                    <Grid>
+                        <ctrl:FrostyDockablePanel Title="Properties" Icon="/FrostyEditor;component/Images/Properties.png">
+                            <core:FrostyPropertyGrid x:Name="PART_AssetPropertyGrid" Asset="{Binding Asset, RelativeSource={RelativeSource TemplatedParent}}" Modified="{Binding AssetModified, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"/>
+                        </ctrl:FrostyDockablePanel>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
 </ResourceDictionary>

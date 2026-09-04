@@ -193,7 +193,7 @@ namespace MeshSetPlugin.Render
 
             var material = materialCollection[section.MaterialId];
 
-            string key = $"{shaderAsset.DisplayName}:{decl.Hash}";
+            string key = $"{shaderAsset.DisplayName}:{section.Name}:{decl.Hash}";
             if (permutations.TryGetValue(key, out var value))
             {
                 value.Parent.UpdatePixelParameters(value.PermutationData.PixelShader, value, material, shaderAsset.DisplayName);
@@ -401,7 +401,26 @@ namespace MeshSetPlugin.Render
             transform = Matrix.Scaling(-1, 1, 1) * transform;
 
             context.InputAssembler.SetIndexBuffer(indexBuffer, indexBufferFormat, 0);
-            foreach (MeshRenderSection section in sections)
+
+            var renderedSections = new List<MeshRenderSection>();
+            if (renderPath == MeshRenderPath.Forward)
+            {
+                // draw opaque objects first, then transparent objects
+                foreach (var section in sections.Where(s => s.Permutation.ShaderType.Contains("opaque")))
+                {
+                    renderedSections.Add(section);
+                }
+                foreach (var section in sections.Where(s => !s.Permutation.ShaderType.Contains("opaque")))
+                {
+                    renderedSections.Add(section);
+                }
+            }
+            else
+            {
+                renderedSections = sections;
+            }
+
+            foreach (MeshRenderSection section in renderedSections)
             {
                 // during shadow pass, draw Z-Only meshes
                 if (renderPath == MeshRenderPath.Shadows && !meshLod.IsSectionInCategory(section.MeshSection, MeshSubsetCategory.MeshSubsetCategory_ZOnly))
@@ -439,40 +458,9 @@ namespace MeshSetPlugin.Render
                     if (renderPath == MeshRenderPath.Forward && !forwardRendered)
                         continue;
 
-                    if (renderPath == MeshRenderPath.Forward && section.Permutation.ShaderType != "opaque")
+                    if (renderPath == MeshRenderPath.Forward && !section.Permutation.ShaderType.Contains("opaque"))
                     {
-                        BlendOption blending = BlendOption.One;
-                        if (ProfilesLibrary.DataVersion <= (int)ProfileVersion.PlantsVsZombiesGardenWarfare)
-                        {
-                            blending = BlendOption.InverseSourceAlpha;
-                        }
-
-                        RenderTargetBlendDescription dualDesc = new RenderTargetBlendDescription()
-                        {
-                            IsBlendEnabled = true,
-                            SourceBlend = BlendOption.One,
-                            DestinationBlend = BlendOption.SecondarySourceColor,
-                            BlendOperation = BlendOperation.Add,
-                            SourceAlphaBlend = BlendOption.One,
-                            DestinationAlphaBlend = BlendOption.InverseSourceAlpha,
-                            AlphaBlendOperation = BlendOperation.Add,
-                            RenderTargetWriteMask = ColorWriteMaskFlags.All
-                        };
-
-                        RenderTargetBlendDescription singleDesc = new RenderTargetBlendDescription()
-                        {
-                            IsBlendEnabled = true,
-                            SourceBlend = BlendOption.One,
-                            DestinationBlend = blending,
-                            BlendOperation = BlendOperation.Add,
-                            SourceAlphaBlend = BlendOption.One,
-                            DestinationAlphaBlend = blending,
-                            AlphaBlendOperation = BlendOperation.Add,
-                            RenderTargetWriteMask = ColorWriteMaskFlags.All
-                        };
-
-                        RenderTargetBlendDescription rtDesc = section.Permutation.RenderTargetCount == 2 ? dualDesc : singleDesc;
-                        context.OutputMerger.BlendState = D3DUtils.CreateBlendState(rtDesc);
+                        context.OutputMerger.BlendState = D3DUtils.CreateBlendState(section.Permutation.PermutationData.GetBlendStateDesc(section.Permutation.RenderTargetCount));
                     }
                 }
 
@@ -491,11 +479,9 @@ namespace MeshSetPlugin.Render
 
                         // dont own many frostbite games so i cant really check other games lol
                         int boneCount = 0;
-                        DepthWriteMask depthMask = DepthWriteMask.Zero;
                         if (ProfilesLibrary.DataVersion <= (int)ProfileVersion.PlantsVsZombiesGardenWarfare)
                         {
                             boneCount = 60;
-                            depthMask = DepthWriteMask.All;
                         }
                         else
                         {
@@ -504,6 +490,7 @@ namespace MeshSetPlugin.Render
 
                         if (renderPath == MeshRenderPath.Forward)
                         {
+                            DepthWriteMask depthMask = perm.ShaderType.Contains("opaque") ? DepthWriteMask.All : DepthWriteMask.Zero;
                             context.OutputMerger.DepthStencilState = D3DUtils.CreateDepthStencilState(depthComparison: Comparison.LessEqual, depthWriteMask: depthMask);
                         }
 
