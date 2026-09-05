@@ -322,6 +322,8 @@ namespace MeshSetPlugin.Render
 
         public Dictionary<string, int> PSResourceSlots = new Dictionary<string, int>();
         public Dictionary<string, int> VSResourceSlots = new Dictionary<string, int>();
+        public Dictionary<string, int> PSCBufferSlots = new Dictionary<string, int>();
+        public Dictionary<string, int> VSCBufferSlots = new Dictionary<string, int>();
 
         public int PixelConstantsSize;
         public int VertexConstantsSize;
@@ -491,6 +493,11 @@ namespace MeshSetPlugin.Render
                         elems.Remove(texcoords[1]);
                     }
 
+                    if (elems.Count != inputs.Count)
+                    {
+                        elems.RemoveAll(e => e.SemanticName == "BONEWEIGHTS");
+                    }
+
                     for (int i = 0; i < elems.Count; i++)
                     {
                         if (inputs.Count <= i)
@@ -503,9 +510,13 @@ namespace MeshSetPlugin.Render
 
                 for (int i = 0; i < desc.BoundResources; i++)
                 {
-                    var bindDesc = reflection.GetResourceBindingDescription(i);
+                    var resourceDesc = reflection.GetResourceBindingDescription(i);
+                    VSResourceSlots[resourceDesc.Name] = resourceDesc.BindPoint;
 
-                    VSResourceSlots[bindDesc.Name] = bindDesc.BindPoint;
+                    if (resourceDesc.Type == ShaderInputType.ConstantBuffer)
+                    {
+                        VSCBufferSlots[resourceDesc.Name] = resourceDesc.BindPoint;
+                    }
                 }
 
                 if (desc.ConstantBuffers > 0)
@@ -543,9 +554,13 @@ namespace MeshSetPlugin.Render
 
                 for (int i = 0; i < desc.BoundResources; i++)
                 {
-                    var bindDesc = reflection.GetResourceBindingDescription(i);
+                    var resourceDesc = reflection.GetResourceBindingDescription(i);
+                    PSResourceSlots[resourceDesc.Name] = resourceDesc.BindPoint;
 
-                    PSResourceSlots[bindDesc.Name] = bindDesc.BindPoint;
+                    if (resourceDesc.Type == ShaderInputType.ConstantBuffer)
+                    {
+                        PSCBufferSlots[resourceDesc.Name] = resourceDesc.BindPoint;
+                    }
                 }
 
                 RenderTargetCount = desc.OutputParameters;
@@ -1543,6 +1558,7 @@ namespace MeshSetPlugin.Render
             }
 
             ShaderPermutation perm = new ShaderPermutation(shaderName, geomDecl, shaderName, this);
+            perm.IsCustomShader = true;
             perm.PermutationData = permutation;
 
             permutations.Add(geomDecl.Hash, perm);

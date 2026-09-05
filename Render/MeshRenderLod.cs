@@ -305,7 +305,6 @@ namespace MeshSetPlugin.Render
             permutation.PSFunctionConstants = new ShaderDataCBuffer(psFunctions);
 
             permutation.ShaderType = renderPath.ShaderType;
-            permutation.IsCustomShader = true;
             renderSection.IsShaderValid = true;
 
             permutations[key] = permutation;
@@ -603,8 +602,11 @@ namespace MeshSetPlugin.Render
                             Matrix m = transform;
                             if (!useBoneVectors)
                             {
-                                // cancels out the first one
-                                m = Matrix.Scaling(-1, 1, 1) * transform;
+                                m = new Matrix(
+                                    1.0f, 1.0f, 1.0f, 1.0f,
+                                    1.0f, 1.0f, 1.0f, 1.0f,
+                                    1.0f, 1.0f, 1.0f, 1.0f,
+                                    1.0f, 1.0f, 1.0f, 1.0f);
                             }
 
                             boneVectors[i] = new Matrix48
@@ -622,15 +624,25 @@ namespace MeshSetPlugin.Render
                             perm.VSFunctionConstants.Upload(context);
                         }
 
-                        context.VertexShader.SetConstantBuffer(0, perm.VSFunctionConstants.Buffer);
-                        context.VertexShader.SetConstantBuffer(1, perm.VSExternalConstants.Buffer);
-                        context.PixelShader.SetConstantBuffer(0, perm.PSFunctionConstants.Buffer);
-                        context.PixelShader.SetConstantBuffer(1, section.PixelParameters);
+                        if (perm.VSCBufferSlots.TryGetValue("functionConstants", out int vsFunctionConstants))
+                            context.VertexShader.SetConstantBuffer(vsFunctionConstants, perm.VSFunctionConstants.Buffer);
+
+                        if (perm.VSCBufferSlots.TryGetValue("externalConstants", out int vsExternalConstants))
+                            context.VertexShader.SetConstantBuffer(vsExternalConstants, perm.VSExternalConstants.Buffer);
+
+                        if (perm.PSCBufferSlots.TryGetValue("functionConstants", out int psFunctionConstants))
+                            context.PixelShader.SetConstantBuffer(psFunctionConstants, perm.PSFunctionConstants.Buffer);
+
+                        if (perm.PSCBufferSlots.TryGetValue("externalConstants", out int psExternalConstants))
+                            context.PixelShader.SetConstantBuffer(psExternalConstants, section.PixelParameters);
 
                         if (perm.ViewConstants != null)
                         {
-                            context.VertexShader.SetConstantBuffer(2, perm.ViewConstants.Buffer);
-                            context.PixelShader.SetConstantBuffer(2, perm.ViewConstants.Buffer);
+                            if (perm.VSCBufferSlots.TryGetValue("viewConstants", out int vsViewConstants))
+                                context.VertexShader.SetConstantBuffer(vsViewConstants, perm.ViewConstants.Buffer);
+
+                            if (perm.PSCBufferSlots.TryGetValue("viewConstants", out int psViewConstants))
+                                context.PixelShader.SetConstantBuffer(psViewConstants, perm.ViewConstants.Buffer);
                         }
                     }
 
